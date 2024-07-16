@@ -1,0 +1,8 @@
+/target
+/web
+/windows
+
+Cargo.lock
+
+*.xcf
+*.zip
