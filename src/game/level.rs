@@ -23,26 +23,25 @@ pub struct LevelConfig {
     tiles_texture_path: String,
     music_path: String,
     starting_position: [usize; 2],
-    parallax: f32,
     tiles: Vec<Tile>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct Tile {
     pub position: [usize; 2],
-    pub mapatlas_source: [usize; 2],
-    pub rotation: usize,
+    pub tile_type: TileType,
+    pub rotation: Rotation,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 enum TileType {
     StartingLine,
-    Base,
-    BaseDecorated1,
-    BaseDecorated2,
-    BaseDecorated3,
-    BaseDecorated4,
-    BaseDecorated5,
+    Base1,
+    Base2,
+    Base3,
+    Base4,
+    Base5,
+    Base6,
     HardTurnInterior,
     HardTurnExterior,
     SoftTurnInterior,
@@ -53,7 +52,29 @@ enum TileType {
     DiagBorder,
 }
 
-#[derive(Clone, Copy)]
+impl TileType {
+    pub fn mapatlas_source(self) -> (f32, f32) {
+        match self {
+            TileType::StartingLine => (0.0, 0.0),
+            TileType::HardTurnInterior => (1.0 * TILE_SIZE, 0.0),
+            TileType::SoftTurnInterior => (2.0 * TILE_SIZE, 0.0),
+            TileType::SoftTurnExterior => (3.0 * TILE_SIZE, 0.0),
+            TileType::StraightBorder => (4.0 * TILE_SIZE, 0.0),
+            TileType::Base1 => (0.0, 1.0 * TILE_SIZE),
+            TileType::HardTurnExterior => (1.0 * TILE_SIZE, 1.0 * TILE_SIZE),
+            TileType::SoftTurnInterior2 => (2.0 * TILE_SIZE, 1.0 * TILE_SIZE),
+            TileType::SoftTurnExterior2 => (3.0 * TILE_SIZE, 1.0 * TILE_SIZE),
+            TileType::DiagBorder => (4.0 * TILE_SIZE, 1.0 * TILE_SIZE),
+            TileType::Base2 => (0.0, 2.0 * TILE_SIZE),
+            TileType::Base3 => (1.0 * TILE_SIZE, 2.0 * TILE_SIZE),
+            TileType::Base4 => (2.0 * TILE_SIZE, 2.0 * TILE_SIZE),
+            TileType::Base5 => (3.0 * TILE_SIZE, 2.0 * TILE_SIZE),
+            TileType::Base6 => (4.0 * TILE_SIZE, 2.0 * TILE_SIZE),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub enum Rotation {
     PiSur2 = 1,
     Pi = 2,
@@ -67,7 +88,6 @@ pub struct Level {
     pub tile_texture: Texture2D,
     music: Sound,
     pub starting_position: [usize; 2],
-    pub parallax: f32,
     tiles: Vec<Tile>,
 }
 
@@ -88,7 +108,6 @@ impl Level {
             tile_texture,
             music,
             starting_position: conf.starting_position,
-            parallax: conf.parallax,
             tiles: conf.tiles.clone(),
         }
     }
@@ -107,6 +126,7 @@ impl Level {
 
     pub fn draw_circuit(&self) {
         self.tiles.iter().for_each(|tile| {
+            let (x, y) = tile.tile_type.mapatlas_source();
             draw_texture_ex(
                 &self.tile_texture,
                 TILE_SIZE * tile.position[0] as f32,
@@ -114,13 +134,8 @@ impl Level {
                 WHITE,
                 DrawTextureParams {
                     dest_size: Some(vec2(TILE_SIZE, TILE_SIZE)),
-                    source: Some(Rect::new(
-                        tile.mapatlas_source[0] as f32 * TILE_SIZE,
-                        tile.mapatlas_source[1] as f32 * TILE_SIZE,
-                        TILE_SIZE,
-                        TILE_SIZE,
-                    )),
-                    rotation: tile.rotation as f32 * FRAC_PI_2,
+                    source: Some(Rect::new(x, y, TILE_SIZE, TILE_SIZE)),
+                    rotation: tile.rotation as usize as f32 * FRAC_PI_2,
                     ..Default::default()
                 },
             )

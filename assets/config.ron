@@ -1,0 +1,8 @@
+Config(
+    carstat: CarStat(          
+        max_velocity: 10,
+        rotation_speed: 2.2,
+        acceleration: 11.68,
+        brake: 3.52,
+    )
+)

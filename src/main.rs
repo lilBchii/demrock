@@ -89,7 +89,7 @@ async fn play_level(
             WHITE,
         );
         draw_text(
-            format!("speed: {:.3}", player.velocity).as_str(),
+            format!("speed: {:2}", player.velocity).as_str(),
             10.,
             60.,
             20.,
@@ -104,28 +104,17 @@ async fn play_level(
             WHITE,
         );
 
-        draw_text(
-            format!("animation: {:?}", player.sprite.frame().source_rect).as_str(),
-            10.0,
-            100.0,
-            20.0,
-            WHITE,
-        );
+        // draw_text(
+        //     format!("animation: {:?}", player.sprite.frame().source_rect).as_str(),
+        //     10.0,
+        //     100.0,
+        //     20.0,
+        //     WHITE,
+        // );
 
         if is_key_pressed(KeyCode::Escape) {
             break;
         }
-
-        /*if is_key_pressed(KeyCode::Enter) {
-            println!("{:?}", cam);
-            println!(
-                "screen w: {}, screen h: {}",
-                screen_width(),
-                screen_height()
-            );
-        }*/
-
-        //player.sprite.update();
 
         next_frame().await;
     }
@@ -143,8 +132,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // load config file
     let config_str =
-        std::fs::read_to_string("assets/config.toml").expect("failed to read config.toml file");
-    let config: Config = toml::from_str(&config_str).expect("invalid config");
+        std::fs::read_to_string("assets/config.ron").expect("failed to read config.ron file");
+    let config: Config = ron::from_str(&config_str).expect("invalid config");
 
     // set the game state to begin at menu
     let mut game_state = GameState::Menu;
@@ -177,9 +166,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 player.sprite.set_animation(0);
 
                 let levels_str =
-                    std::fs::read_to_string("assets/levels/levels.toml").expect("levels.toml file");
+                    std::fs::read_to_string("assets/levels/levels.ron").expect("levels.ron file");
                 let levels_config: Levels =
-                    toml::from_str(&levels_str).expect("invalid config level");
+                    ron::from_str(&levels_str).expect("invalid config level");
 
                 let mut current_level_index: usize = 1;
 

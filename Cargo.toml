@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 gilrs = "0.10.7"
 macroquad = { version = "=0.4.8", features = ["audio"] }
+ron = "0.8.1"
 serde = { version = "1.0.202", features = ["derive"] }
-toml = "0.8.13"
 
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gc"

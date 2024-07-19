@@ -26,7 +26,7 @@ pub struct Player {
     pub texture: Texture2D,
 
     pub position: Vec2,
-    rotation: f32,
+    pub rotation: f32,
     pub velocity: f32,
 
     stat: CarStat,
@@ -79,8 +79,6 @@ impl Player {
     pub fn update(&mut self, gilrs: &mut Gilrs) {
         let delta_time = get_frame_time();
 
-        //self.sprite.set_animation(0);
-
         // gamepad controls
         while let Some(Event { event, .. }) = gilrs.next_event() {
             match event {
@@ -116,6 +114,7 @@ impl Player {
         }
         if self.input.brake.is_some() {
             self.velocity -= self.input.brake.unwrap() * self.stat.brake * delta_time;
+            self.sprite.set_animation(0);
         }
         if self.input.turn.is_some() {
             self.rotation += self.input.turn.unwrap() * self.stat.rotation_speed * delta_time;
@@ -130,9 +129,11 @@ impl Player {
         }
         if is_key_down(KeyCode::Down) | is_key_down(KeyCode::S) {
             self.velocity -= self.stat.brake * delta_time;
+            self.sprite.set_animation(0);
         }
         if is_key_down(KeyCode::Up) | is_key_down(KeyCode::Z) | is_key_down(KeyCode::W) {
             self.velocity += self.stat.acceleration * delta_time;
+            self.sprite.set_animation(1);
         }
 
         // Avoid velocity to get higher than max speed
