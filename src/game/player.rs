@@ -8,7 +8,7 @@ use crate::game::ZOOM;
 
 use crate::config::CarStat;
 
-use super::TILE_SIZE;
+use super::{PlayerHitbox, TILE_SIZE};
 
 pub const SPRITE_SIZE: (f32, f32) = (32.0, 56.0);
 
@@ -28,6 +28,8 @@ pub struct Player {
     pub position: Vec2,
     pub rotation: f32,
     pub velocity: f32,
+
+    pub hitbox: PlayerHitbox,
 
     stat: CarStat,
 
@@ -65,6 +67,7 @@ impl Player {
             position: Vec2::new(0.0, 0.0),
             rotation: 0.0,
             velocity: 0.0,
+            hitbox: PlayerHitbox::new(vec2(0.0, 0.0), 0.0),
             stat: *stat,
             input: Input {
                 accelerate: None,
@@ -143,6 +146,9 @@ impl Player {
         self.position.y += -self.rotation.cos() * self.velocity;
         // Decelerate car
         self.velocity *= 0.98;
+
+        // Update hitbox
+        self.hitbox = PlayerHitbox::new(self.position, self.rotation);
     }
 
     pub fn draw(&mut self) {
@@ -177,5 +183,6 @@ impl Player {
         );
         self.rotation = 0.0;
         self.velocity = 0.0;
+        self.hitbox = PlayerHitbox::new(self.position, self.rotation);
     }
 }

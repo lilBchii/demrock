@@ -1,13 +1,13 @@
 use game::{
-    play_music, set_background_cam, set_player_cam, update_viewport, GameMode, GameState, Level,
-    Levels, MusicParams, Player, TILE_SIZE,
+    clear_viewport, play_music, set_background_cam, set_player_cam, update_viewport, GameMode,
+    GameState, Level, Levels, LineBorder, MusicParams, Player,
 };
 use gilrs::*;
 use macroquad::audio::{load_sound, set_sound_volume, stop_sound};
 use macroquad::prelude::*;
-use macroquad::window;
 
 use std::error::Error;
+use std::f32::consts::FRAC_PI_2;
 
 mod config;
 mod game;
@@ -31,12 +31,21 @@ impl Resources {
 
 async fn play_level(
     player: &mut Player,
-    level: &Level,
+    level: &mut Level,
     start_time: f64,
     gilrs: &mut Gilrs,
     font: &Font,
 ) {
     player.init(level.starting_position);
+
+    // let border = LineBorder::new(
+    //     vec2(
+    //         MAP_SIZE.0 * TILE_SIZE,
+    //         level.starting_position[1] as f32 * TILE_SIZE,
+    //     ),
+    //     MAP_SIZE.0 * TILE_SIZE,
+    //     -FRAC_PI_2,
+    // );
 
     loop {
         let time = get_time() - start_time;
@@ -47,27 +56,23 @@ async fn play_level(
 
         let zoom = player.zoom_speed();
 
-        set_background_cam(player, viewport);
-
-        level.draw_background();
-
-        // clear viewport
-        unsafe {
-            window::get_internal_gl().quad_gl.viewport(None);
-        }
-
-        set_player_cam(zoom, player, viewport);
-
-        level.draw_circuit();
         player.update(gilrs);
         player.sprite.update();
+
+        // draw background
+        set_background_cam(player, viewport);
+        level.draw_background();
+        clear_viewport();
+
+        // main cam
+        set_player_cam(zoom, player, viewport);
+        level.draw_circuit();
         player.draw();
+        // border.draw();
+        // player.hitbox.draw();
+        clear_viewport();
 
-        // clear viewport
-        unsafe {
-            window::get_internal_gl().quad_gl.viewport(None);
-        }
-
+        // draw ui
         set_default_camera();
 
         draw_text_ex(
@@ -81,6 +86,7 @@ async fn play_level(
                 ..Default::default()
             },
         );
+
         draw_text(
             format!("FPS: {}", get_fps()).as_str(),
             10.0,
@@ -88,26 +94,38 @@ async fn play_level(
             20.0,
             WHITE,
         );
-        draw_text(
-            format!("speed: {:2}", player.velocity).as_str(),
-            10.,
-            60.,
-            20.,
-            WHITE,
-        );
 
-        draw_text(
-            format!("player: {:2} {:2}", player.position.x, player.position.y).as_str(),
-            10.0,
-            80.0,
-            20.0,
-            WHITE,
-        );
+        // draw_text(format!("line: {:?}", border).as_str(), 10., 60., 20., WHITE);
 
         // draw_text(
-        //     format!("animation: {:?}", player.sprite.frame().source_rect).as_str(),
+        //     format!(
+        //         "player: {:2} {:2} {:2}",
+        //         player.position.x, player.position.y, player.rotation
+        //     )
+        //     .as_str(),
+        //     10.0,
+        //     80.0,
+        //     20.0,
+        //     WHITE,
+        // );
+
+        // draw_text(
+        //     format!("collision: {}", player.hitbox.collides(&border)).as_str(),
         //     10.0,
         //     100.0,
+        //     20.0,
+        //     WHITE,
+        // );
+
+        // draw_text(
+        //     format!(
+        //         "hitboxes rotated: {:?} {:?}",
+        //         player_hitbox.rotated_points(border.rotation),
+        //         border.rotated_start()
+        //     )
+        //     .as_str(),
+        //     10.0,
+        //     120.0,
         //     20.0,
         //     WHITE,
         // );
@@ -185,7 +203,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 play_level(
                     &mut player,
-                    &levels[current_level_index],
+                    &mut levels[current_level_index],
                     start_time,
                     &mut gilrs,
                     &gui_resources.font,

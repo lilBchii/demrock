@@ -1,5 +1,4 @@
 mod button;
-mod constants;
 mod credits;
 mod main_menu;
 mod options;

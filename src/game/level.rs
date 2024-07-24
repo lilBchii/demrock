@@ -5,7 +5,10 @@ use macroquad::color::WHITE;
 use macroquad::math::{vec2, Rect};
 use macroquad::miniquad::FilterMode;
 use macroquad::texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D};
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
+
+use super::LineBorder;
 
 pub const TILE_SIZE: f32 = 24.0;
 pub const MAP_SIZE: (f32, f32) = (500.0, 250.0);
@@ -34,7 +37,7 @@ pub struct Tile {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-enum TileType {
+pub enum TileType {
     StartingLine,
     Base1,
     Base2,
@@ -89,6 +92,7 @@ pub struct Level {
     music: Sound,
     pub starting_position: [usize; 2],
     tiles: Vec<Tile>,
+    pub borders: FxHashMap<usize, LineBorder>,
 }
 
 impl Level {
@@ -102,6 +106,9 @@ impl Level {
         background.set_filter(FilterMode::Nearest);
         tile_texture.set_filter(FilterMode::Nearest);
 
+        let borders: FxHashMap<usize, LineBorder> = FxHashMap::default();
+        //borders.insert(tile_position_flatten(tile.position), LineBorder {start: conf.starting_position})
+
         Self {
             name: conf.name.clone(),
             background,
@@ -109,6 +116,7 @@ impl Level {
             music,
             starting_position: conf.starting_position,
             tiles: conf.tiles.clone(),
+            borders,
         }
     }
 
@@ -141,4 +149,9 @@ impl Level {
             )
         });
     }
+}
+
+#[inline]
+pub fn tile_position_flatten(pos: [usize; 2]) -> usize {
+    pos[0] * MAP_SIZE.0 as usize + pos[1] % MAP_SIZE.0 as usize
 }

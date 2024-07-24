@@ -1,191 +1,69 @@
 use std::f32::consts::PI;
 
-use macroquad::math::{vec2, Rect, Vec2};
+use macroquad::{
+    color::RED,
+    math::{vec2, Rect, Vec2},
+    shapes::{draw_circle, draw_line},
+};
 
-use super::{Player, Tile, TILE_SIZE};
+use super::{Player, Tile, TileType, TILE_SIZE};
 
-pub trait Collider {
-    fn collides<T: Collider>(&self, other: T) -> bool;
-    fn top(&self) -> Vec2;
-    fn bottom(&self) -> Vec2;
-    fn left(&self) -> Vec2;
-    fn right(&self) -> Vec2;
-    fn rotation(&self) -> f32;
+pub trait Collider<T> {
+    fn collides(&self, other: T) -> bool;
 }
 
+#[derive(Debug)]
 pub struct LineBorder {
-    start: Vec2,
-    lengh: f32,
+    pub start: Vec2,
+    pub lengh: f32,
     // rotation around start
-    rotation: f32,
+    pub rotation: f32,
 }
 
-impl Collider for LineBorder {
-    fn collides<T: Collider>(&self, other: T) -> bool {
-        todo!()
-    }
-    fn top(&self) -> Vec2 {
-        if self.rotation <= PI {
-            self.start
-        } else {
-            vec2(
-                self.start.y * self.start.x + self.start.y * self.start.y,
-                self.lengh,
-            )
+impl LineBorder {
+    pub fn new(start: Vec2, lengh: f32, rotation: f32) -> Self {
+        Self {
+            start,
+            lengh,
+            rotation,
         }
     }
-    fn bottom(&self) -> Vec2 {
-        todo!()
+
+    pub fn rotated_start(&self) -> Vec2 {
+        vec2(
+            self.start.x * self.rotation.cos() + self.start.y * self.rotation.sin(),
+            -self.start.x * self.rotation.sin() + self.start.y * self.rotation.cos(),
+        )
     }
-    fn left(&self) -> Vec2 {
-        todo!()
+
+    pub fn end(&self) -> Vec2 {
+        vec2(
+            -(self.start.y - self.lengh) * self.rotation.sin() + self.start.x,
+            (self.start.y - self.lengh) * self.rotation.cos() + self.start.y,
+        )
     }
-    fn right(&self) -> Vec2 {
-        todo!()
-    }
-    fn rotation(&self) -> f32 {
-        self.rotation
+
+    pub fn draw(&self) {
+        draw_line(
+            self.start.x,
+            self.start.y,
+            self.end().x,
+            self.end().y,
+            1.0,
+            RED,
+        );
     }
 }
 
-// impl LineBorder {
-//     pub fn from_tile(tile: Tile) -> Option<LineBorder> {
-//         match tile.mapatlas_source {
-//             [1, 0] => {
-//                 Some(LineBorder { points: vec![] })
-//             }
-//             _ => None,
-//         }
-//     }
-// }
-
-// pub struct TileHitbox {
-//     rect: Rect,
-//     dir: Direction,
-// }
-
-// impl Collider for TileHitbox {
-//     fn collides<T: Collider>(&self, other: T) -> bool {
-//         todo!()
-//     }
-
-//     fn top(&self) -> f32 {
-//         match self.dir {
-//             Direction::Straight => self.rect.y - self.rect.h * 0.5,
-//             Direction::Diag => (self.rect.y),
-//         }
-//     }
-
-//     fn bottom(&self) -> f32 {
-//         todo!()
-//     }
-
-//     fn left(&self) -> f32 {
-//         todo!()
-//     }
-
-//     fn right(&self) -> f32 {
-//         todo!()
-//     }
-
-//     fn rect(&self) -> Rect {
-//         self.rect
-//     }
-// }
-
-// impl TileHitbox {
-//     // pub fn from_tile(tile: Tile) -> Option<Self> {
-//     //     match tile.mapatlas_source {
-//     //         [1, 0] => match tile.rotation {
-//     //             // on the bottom right
-//     //             0 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE + 20.0,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE + 20.0,
-//     //                     w: 4.0,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }),
-//     //             // on the bottom left
-//     //             1 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE + 20.0,
-//     //                     w: 4.0,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }), // on the top left
-//     //             2 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE,
-//     //                     w: 4.0,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }),
-//     //             // on the top right
-//     //             3 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE + 20.0,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE,
-//     //                     w: 4.0,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }),
-//     //             _ => None,
-//     //         },
-//     //         [4, 0] => match tile.rotation {
-//     //             // bottom
-//     //             0 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE + 20.0,
-//     //                     w: TILE_SIZE,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }),
-//     //             // left
-//     //             1 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE,
-//     //                     w: 4.0,
-//     //                     h: TILE_SIZE,
-//     //                 },
-//     //             }),
-//     //             // top
-//     //             2 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE,
-//     //                     w: TILE_SIZE,
-//     //                     h: 4.0,
-//     //                 },
-//     //             }),
-//     //             // right
-//     //             3 => Some(Self {
-//     //                 rect: Rect {
-//     //                     x: tile.position[0] as f32 * TILE_SIZE + 20.0,
-//     //                     y: tile.position[1] as f32 * TILE_SIZE,
-//     //                     w: 4.0,
-//     //                     h: TILE_SIZE,
-//     //                 },
-//     //             }),
-//     //             _ => None,
-//     //         },
-//     //         _ => None,
-//     //     }
-//     // }
-// }
-
+#[derive(Clone, Copy)]
 pub struct PlayerHitbox {
     // (x,y) the center of the hitbox
     rect: Rect,
     rotation: f32,
 }
 
-impl From<&Player> for PlayerHitbox {
-    fn from(player: &Player) -> Self {
+impl From<&mut Player> for PlayerHitbox {
+    fn from(player: &mut Player) -> Self {
         Self {
             rect: Rect {
                 x: player.position.x,
@@ -198,28 +76,86 @@ impl From<&Player> for PlayerHitbox {
     }
 }
 
-impl Collider for PlayerHitbox {
-    fn collides<T: Collider>(&self, other: T) -> bool {
-        todo!()
+impl PlayerHitbox {
+    pub fn new(pos: Vec2, rot: f32) -> Self {
+        Self {
+            rect: Rect {
+                x: pos.x,
+                y: pos.y,
+                w: 5.0,
+                h: 10.0,
+            },
+            rotation: rot,
+        }
     }
 
-    fn top(&self) -> Vec2 {
-        todo!()
+    pub fn points(self) -> [Vec2; 4] {
+        let cos_rot = self.rotation.cos();
+        let sin_rot = self.rotation.sin();
+        [
+            // TL
+            vec2(
+                (-self.rect.w * cos_rot + self.rect.h * sin_rot) * 0.5 + self.rect.x,
+                (-self.rect.w * sin_rot - self.rect.h * cos_rot) * 0.5 + self.rect.y,
+            ),
+            // TR
+            vec2(
+                (self.rect.w * cos_rot + self.rect.h * sin_rot) * 0.5 + self.rect.x,
+                (self.rect.w * sin_rot - self.rect.h * cos_rot) * 0.5 + self.rect.y,
+            ),
+            // BR
+            vec2(
+                (self.rect.w * cos_rot - self.rect.h * sin_rot) * 0.5 + self.rect.x,
+                (self.rect.w * sin_rot + self.rect.h * cos_rot) * 0.5 + self.rect.y,
+            ),
+            // BL
+            vec2(
+                (-self.rect.w * cos_rot - self.rect.h * sin_rot) * 0.5 + self.rect.x,
+                (-self.rect.w * sin_rot + self.rect.h * cos_rot) * 0.5 + self.rect.y,
+            ),
+        ]
     }
 
-    fn bottom(&self) -> Vec2 {
-        todo!()
+    pub fn rotated_points(self, rotation: f32) -> [Vec2; 4] {
+        let cos_rot = rotation.cos();
+        let sin_rot = -rotation.sin();
+        let points = self.points();
+        [
+            vec2(
+                points[0].x * cos_rot - points[0].y * sin_rot,
+                points[0].x * sin_rot + points[0].y * cos_rot,
+            ),
+            vec2(
+                points[1].x * cos_rot - points[1].y * sin_rot,
+                points[1].x * sin_rot + points[1].y * cos_rot,
+            ),
+            vec2(
+                points[2].x * cos_rot - points[2].y * sin_rot,
+                points[2].x * sin_rot + points[2].y * cos_rot,
+            ),
+            vec2(
+                points[3].x * cos_rot - points[3].y * sin_rot,
+                points[3].x * sin_rot + points[3].y * cos_rot,
+            ),
+        ]
     }
 
-    fn left(&self) -> Vec2 {
-        todo!()
+    pub fn draw(&self) {
+        let points = self.points();
+        draw_line(points[0].x, points[0].y, points[1].x, points[1].y, 1.0, RED);
+        draw_line(points[1].x, points[1].y, points[2].x, points[2].y, 1.0, RED);
+        draw_line(points[2].x, points[2].y, points[3].x, points[3].y, 1.0, RED);
+        draw_line(points[3].x, points[3].y, points[0].x, points[0].y, 1.0, RED);
+        draw_circle(self.rect.x, self.rect.y, 1.0, RED)
     }
+}
 
-    fn right(&self) -> Vec2 {
-        todo!()
-    }
-
-    fn rotation(&self) -> f32 {
-        self.rotation
+impl Collider<&LineBorder> for PlayerHitbox {
+    fn collides(&self, other: &LineBorder) -> bool {
+        let start = other.rotated_start();
+        // check if player hitbox has a point at the right of the line
+        self.rotated_points(other.rotation).iter().any(|point| {
+            point.x > start.x && point.y < start.y && point.y > (start.y - other.lengh)
+        })
     }
 }
