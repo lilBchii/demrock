@@ -1,5 +1,6 @@
 use std::f32::consts::LN_2;
 
+use ahash::AHashMap;
 use gilrs::*;
 use macroquad::experimental::animation::*;
 use macroquad::prelude::*;
@@ -8,7 +9,7 @@ use crate::game::ZOOM;
 
 use crate::config::CarStat;
 
-use super::{PlayerHitbox, TILE_SIZE};
+use super::{tile_position_flatten, Collider, LineBorder, RectHitbox, Tile, TILE_SIZE};
 
 pub const SPRITE_SIZE: (f32, f32) = (32.0, 56.0);
 
@@ -28,8 +29,6 @@ pub struct Player {
     pub position: Vec2,
     pub rotation: f32,
     pub velocity: f32,
-
-    pub hitbox: PlayerHitbox,
 
     stat: CarStat,
 
@@ -67,7 +66,6 @@ impl Player {
             position: Vec2::new(0.0, 0.0),
             rotation: 0.0,
             velocity: 0.0,
-            hitbox: PlayerHitbox::new(vec2(0.0, 0.0), 0.0),
             stat: *stat,
             input: Input {
                 accelerate: None,
@@ -146,9 +144,6 @@ impl Player {
         self.position.y += -self.rotation.cos() * self.velocity;
         // Decelerate car
         self.velocity *= 0.98;
-
-        // Update hitbox
-        self.hitbox = PlayerHitbox::new(self.position, self.rotation);
     }
 
     pub fn draw(&mut self) {
@@ -183,6 +178,51 @@ impl Player {
         );
         self.rotation = 0.0;
         self.velocity = 0.0;
-        self.hitbox = PlayerHitbox::new(self.position, self.rotation);
+    }
+}
+
+impl RectHitbox for Player {
+    fn rect(&self) -> Rect {
+        Rect::new(
+            self.position.x,
+            self.position.y,
+            self.stat.hitbox_size.0,
+            self.stat.hitbox_size.1,
+        )
+    }
+
+    fn rotation(&self) -> f32 {
+        self.rotation
+    }
+}
+
+// impl Collider<LineBorder> for Player {
+//     fn collides(&self, other: LineBorder) -> bool {
+//         let start = other.rotated_start();
+//         // check if player hitbox has a point at the right of the line
+//         self.rotated_points(other.rotation).iter().any(|point| {
+//             point.x > start.x && point.y < start.y && point.y > (start.y - other.lengh)
+//         })
+//     }
+// }
+
+impl Collider<&AHashMap<usize, Tile>> for Player {
+    fn collides(&self, other: &AHashMap<usize, Tile>) -> bool {
+        self.points().iter().any(|point| {
+            other
+                .get(&tile_position_flatten([
+                    (point.x / TILE_SIZE) as usize,
+                    (point.y / TILE_SIZE) as usize,
+                ]))
+                .is_some_and(|tile| {
+                    LineBorder::can_from(tile).is_some_and(|border| point.collides(border))
+                })
+                || other
+                    .get(&tile_position_flatten([
+                        (point.x / TILE_SIZE) as usize,
+                        (point.y / TILE_SIZE) as usize,
+                    ]))
+                    .is_none()
+        })
     }
 }

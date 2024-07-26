@@ -4,5 +4,6 @@ Config(
         rotation_speed: 2.2,
         acceleration: 11.68,
         brake: 3.52,
+        hitbox_size: (3.0, 8.0),
     )
 )

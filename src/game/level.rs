@@ -1,16 +1,17 @@
 use std::f32::consts::FRAC_PI_2;
 
+use ahash::AHashMap;
 use macroquad::audio::{load_sound, Sound};
 use macroquad::color::WHITE;
 use macroquad::math::{vec2, Rect};
 use macroquad::miniquad::FilterMode;
 use macroquad::texture::{draw_texture_ex, load_texture, DrawTextureParams, Texture2D};
-use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 use super::LineBorder;
 
 pub const TILE_SIZE: f32 = 24.0;
+pub const TILE_DIAG_SIZE: f32 = 33.941125;
 pub const MAP_SIZE: (f32, f32) = (500.0, 250.0);
 
 #[derive(Clone, Deserialize)]
@@ -29,14 +30,14 @@ pub struct LevelConfig {
     tiles: Vec<Tile>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 pub struct Tile {
     pub position: [usize; 2],
     pub tile_type: TileType,
     pub rotation: Rotation,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 pub enum TileType {
     StartingLine,
     Base1,
@@ -77,7 +78,7 @@ impl TileType {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub enum Rotation {
     PiSur2 = 1,
     Pi = 2,
@@ -91,23 +92,26 @@ pub struct Level {
     pub tile_texture: Texture2D,
     music: Sound,
     pub starting_position: [usize; 2],
-    tiles: Vec<Tile>,
-    pub borders: FxHashMap<usize, LineBorder>,
+    pub tiles: AHashMap<usize, Tile>,
 }
 
 impl Level {
     pub async fn load(conf: &LevelConfig) -> Self {
-        let background: Texture2D = load_texture(&conf.background_path).await.expect("file bg");
-        let music: Sound = load_sound(&conf.music_path).await.expect("file sound");
+        let background: Texture2D = load_texture(&conf.background_path)
+            .await
+            .expect("background.png file");
+        let music: Sound = load_sound(&conf.music_path).await.expect("music.wav file");
         let tile_texture: Texture2D = load_texture(&conf.tiles_texture_path)
             .await
-            .expect("file tile");
+            .expect("mapatlas.png file");
 
         background.set_filter(FilterMode::Nearest);
         tile_texture.set_filter(FilterMode::Nearest);
 
-        let borders: FxHashMap<usize, LineBorder> = FxHashMap::default();
-        //borders.insert(tile_position_flatten(tile.position), LineBorder {start: conf.starting_position})
+        let mut tiles = AHashMap::<usize, Tile>::new();
+        conf.tiles.iter().for_each(|tile| {
+            tiles.insert(tile_position_flatten(tile.position), *tile);
+        });
 
         Self {
             name: conf.name.clone(),
@@ -115,8 +119,7 @@ impl Level {
             tile_texture,
             music,
             starting_position: conf.starting_position,
-            tiles: conf.tiles.clone(),
-            borders,
+            tiles,
         }
     }
 
@@ -133,7 +136,7 @@ impl Level {
     }
 
     pub fn draw_circuit(&self) {
-        self.tiles.iter().for_each(|tile| {
+        self.tiles.iter().for_each(|(_, tile)| {
             let (x, y) = tile.tile_type.mapatlas_source();
             draw_texture_ex(
                 &self.tile_texture,

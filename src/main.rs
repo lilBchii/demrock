@@ -1,13 +1,14 @@
 use game::{
-    clear_viewport, play_music, set_background_cam, set_player_cam, update_viewport, GameMode,
-    GameState, Level, Levels, LineBorder, MusicParams, Player,
+    clear_viewport, play_music, set_background_cam, set_player_cam, tile_position_flatten,
+    update_viewport, Collider, GameMode, GameState, Level, Levels, LineBorder, MusicParams, Player,
+    RectHitbox, TileType, MAP_SIZE, TILE_DIAG_SIZE, TILE_SIZE,
 };
 use gilrs::*;
 use macroquad::audio::{load_sound, set_sound_volume, stop_sound};
 use macroquad::prelude::*;
 
 use std::error::Error;
-use std::f32::consts::FRAC_PI_2;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 mod config;
 mod game;
@@ -38,14 +39,7 @@ async fn play_level(
 ) {
     player.init(level.starting_position);
 
-    // let border = LineBorder::new(
-    //     vec2(
-    //         MAP_SIZE.0 * TILE_SIZE,
-    //         level.starting_position[1] as f32 * TILE_SIZE,
-    //     ),
-    //     MAP_SIZE.0 * TILE_SIZE,
-    //     -FRAC_PI_2,
-    // );
+    let mut out = false;
 
     loop {
         let time = get_time() - start_time;
@@ -59,6 +53,8 @@ async fn play_level(
         player.update(gilrs);
         player.sprite.update();
 
+        out = player.collides(&level.tiles);
+
         // draw background
         set_background_cam(player, viewport);
         level.draw_background();
@@ -68,8 +64,7 @@ async fn play_level(
         set_player_cam(zoom, player, viewport);
         level.draw_circuit();
         player.draw();
-        // border.draw();
-        // player.hitbox.draw();
+        //player.draw_hitbox();
         clear_viewport();
 
         // draw ui
@@ -95,8 +90,6 @@ async fn play_level(
             WHITE,
         );
 
-        // draw_text(format!("line: {:?}", border).as_str(), 10., 60., 20., WHITE);
-
         // draw_text(
         //     format!(
         //         "player: {:2} {:2} {:2}",
@@ -109,13 +102,7 @@ async fn play_level(
         //     WHITE,
         // );
 
-        // draw_text(
-        //     format!("collision: {}", player.hitbox.collides(&border)).as_str(),
-        //     10.0,
-        //     100.0,
-        //     20.0,
-        //     WHITE,
-        // );
+        draw_text(format!("out: {}", out).as_str(), 10.0, 60.0, 20.0, WHITE);
 
         // draw_text(
         //     format!(
@@ -149,9 +136,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let gui_resources = gui::GuiResources::new().await;
 
     // load config file
-    let config_str =
-        std::fs::read_to_string("assets/config.ron").expect("failed to read config.ron file");
-    let config: Config = ron::from_str(&config_str).expect("invalid config");
+    let config_str = std::fs::read_to_string("assets/config.ron").expect("read config.ron file");
+    let config: Config = ron::from_str(&config_str).expect("valid config.ron");
 
     // set the game state to begin at menu
     let mut game_state = GameState::Menu;
@@ -185,8 +171,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 let levels_str =
                     std::fs::read_to_string("assets/levels/levels.ron").expect("levels.ron file");
-                let levels_config: Levels =
-                    ron::from_str(&levels_str).expect("invalid config level");
+                let levels_config: Levels = ron::from_str(&levels_str).expect("valid config level");
 
                 let mut current_level_index: usize = 1;
 

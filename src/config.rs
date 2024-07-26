@@ -11,4 +11,5 @@ pub struct CarStat {
     pub rotation_speed: f32,
     pub acceleration: f32,
     pub brake: f32,
+    pub hitbox_size: (f32, f32),
 }

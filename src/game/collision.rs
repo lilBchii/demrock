@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
 
 use macroquad::{
     color::RED,
@@ -6,7 +6,7 @@ use macroquad::{
     shapes::{draw_circle, draw_line},
 };
 
-use super::{Player, Tile, TileType, TILE_SIZE};
+use super::{Player, Rotation, Tile, TileType, TILE_DIAG_SIZE, TILE_SIZE};
 
 pub trait Collider<T> {
     fn collides(&self, other: T) -> bool;
@@ -43,6 +43,114 @@ impl LineBorder {
         )
     }
 
+    pub fn can_from(tile: &Tile) -> Option<Self> {
+        match tile.tile_type {
+            TileType::DiagBorder => match tile.rotation {
+                Rotation::PiFois2 => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -3.0 * FRAC_PI_4,
+                )),
+                Rotation::PiSur2 => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -FRAC_PI_4,
+                )),
+                Rotation::Pi => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    FRAC_PI_4,
+                )),
+                Rotation::PiFois3Sur2 => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    3.0 * FRAC_PI_4,
+                )),
+            },
+            TileType::SoftTurnExterior => match tile.rotation {
+                Rotation::PiSur2 => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -3.0 * FRAC_PI_4,
+                )),
+                Rotation::Pi => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -FRAC_PI_4,
+                )),
+                Rotation::PiFois3Sur2 => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    FRAC_PI_4,
+                )),
+                Rotation::PiFois2 => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    3.0 * FRAC_PI_4,
+                )),
+            },
+            TileType::SoftTurnExterior2 => match tile.rotation {
+                Rotation::Pi => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -3.0 * FRAC_PI_4,
+                )),
+                Rotation::PiFois3Sur2 => Some(LineBorder::new(
+                    vec2(
+                        (tile.position[0] + 1) as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    -FRAC_PI_4,
+                )),
+                Rotation::PiFois2 => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        (tile.position[1] + 1) as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    FRAC_PI_4,
+                )),
+                Rotation::PiSur2 => Some(LineBorder::new(
+                    vec2(
+                        tile.position[0] as f32 * TILE_SIZE,
+                        tile.position[1] as f32 * TILE_SIZE,
+                    ),
+                    TILE_DIAG_SIZE,
+                    3.0 * FRAC_PI_4,
+                )),
+            },
+            _ => None,
+        }
+    }
+
     pub fn draw(&self) {
         draw_line(
             self.start.x,
@@ -52,71 +160,43 @@ impl LineBorder {
             1.0,
             RED,
         );
+        draw_circle(self.start.x, self.start.y, 1.5, RED);
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct PlayerHitbox {
+pub trait RectHitbox {
     // (x,y) the center of the hitbox
-    rect: Rect,
-    rotation: f32,
-}
+    fn rect(&self) -> Rect;
+    fn rotation(&self) -> f32;
 
-impl From<&mut Player> for PlayerHitbox {
-    fn from(player: &mut Player) -> Self {
-        Self {
-            rect: Rect {
-                x: player.position.x,
-                y: player.position.y,
-                w: 4.0,
-                h: 4.0,
-            },
-            rotation: player.rotation,
-        }
-    }
-}
-
-impl PlayerHitbox {
-    pub fn new(pos: Vec2, rot: f32) -> Self {
-        Self {
-            rect: Rect {
-                x: pos.x,
-                y: pos.y,
-                w: 5.0,
-                h: 10.0,
-            },
-            rotation: rot,
-        }
-    }
-
-    pub fn points(self) -> [Vec2; 4] {
-        let cos_rot = self.rotation.cos();
-        let sin_rot = self.rotation.sin();
+    fn points(&self) -> [Vec2; 4] {
+        let cos_rot = self.rotation().cos();
+        let sin_rot = self.rotation().sin();
         [
             // TL
             vec2(
-                (-self.rect.w * cos_rot + self.rect.h * sin_rot) * 0.5 + self.rect.x,
-                (-self.rect.w * sin_rot - self.rect.h * cos_rot) * 0.5 + self.rect.y,
+                (-self.rect().w * cos_rot + self.rect().h * sin_rot) * 0.5 + self.rect().x,
+                (-self.rect().w * sin_rot - self.rect().h * cos_rot) * 0.5 + self.rect().y,
             ),
             // TR
             vec2(
-                (self.rect.w * cos_rot + self.rect.h * sin_rot) * 0.5 + self.rect.x,
-                (self.rect.w * sin_rot - self.rect.h * cos_rot) * 0.5 + self.rect.y,
+                (self.rect().w * cos_rot + self.rect().h * sin_rot) * 0.5 + self.rect().x,
+                (self.rect().w * sin_rot - self.rect().h * cos_rot) * 0.5 + self.rect().y,
             ),
             // BR
             vec2(
-                (self.rect.w * cos_rot - self.rect.h * sin_rot) * 0.5 + self.rect.x,
-                (self.rect.w * sin_rot + self.rect.h * cos_rot) * 0.5 + self.rect.y,
+                (self.rect().w * cos_rot - self.rect().h * sin_rot) * 0.5 + self.rect().x,
+                (self.rect().w * sin_rot + self.rect().h * cos_rot) * 0.5 + self.rect().y,
             ),
             // BL
             vec2(
-                (-self.rect.w * cos_rot - self.rect.h * sin_rot) * 0.5 + self.rect.x,
-                (-self.rect.w * sin_rot + self.rect.h * cos_rot) * 0.5 + self.rect.y,
+                (-self.rect().w * cos_rot - self.rect().h * sin_rot) * 0.5 + self.rect().x,
+                (-self.rect().w * sin_rot + self.rect().h * cos_rot) * 0.5 + self.rect().y,
             ),
         ]
     }
 
-    pub fn rotated_points(self, rotation: f32) -> [Vec2; 4] {
+    fn rotated_points(&self, rotation: f32) -> [Vec2; 4] {
         let cos_rot = rotation.cos();
         let sin_rot = -rotation.sin();
         let points = self.points();
@@ -140,22 +220,23 @@ impl PlayerHitbox {
         ]
     }
 
-    pub fn draw(&self) {
+    fn draw_hitbox(&self) {
         let points = self.points();
         draw_line(points[0].x, points[0].y, points[1].x, points[1].y, 1.0, RED);
         draw_line(points[1].x, points[1].y, points[2].x, points[2].y, 1.0, RED);
         draw_line(points[2].x, points[2].y, points[3].x, points[3].y, 1.0, RED);
         draw_line(points[3].x, points[3].y, points[0].x, points[0].y, 1.0, RED);
-        draw_circle(self.rect.x, self.rect.y, 1.0, RED)
+        draw_circle(self.rect().x, self.rect().y, 1.0, RED)
     }
 }
 
-impl Collider<&LineBorder> for PlayerHitbox {
-    fn collides(&self, other: &LineBorder) -> bool {
+impl Collider<LineBorder> for Vec2 {
+    fn collides(&self, other: LineBorder) -> bool {
+        let point = vec2(
+            self.x * other.rotation.cos() + self.y * other.rotation.sin(),
+            -self.x * other.rotation.sin() + self.y * other.rotation.cos(),
+        );
         let start = other.rotated_start();
-        // check if player hitbox has a point at the right of the line
-        self.rotated_points(other.rotation).iter().any(|point| {
-            point.x > start.x && point.y < start.y && point.y > (start.y - other.lengh)
-        })
+        point.x > start.x && point.y < start.y && point.y > (start.y - other.lengh)
     }
 }
