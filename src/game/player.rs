@@ -6,21 +6,13 @@ use macroquad::experimental::animation::*;
 use macroquad::prelude::*;
 
 use crate::game::ZOOM;
+use crate::input::PlayerInput;
 
 use crate::config::CarStat;
 
-use super::{tile_position_flatten, Collider, LineBorder, RectHitbox, Tile, TILE_SIZE};
+use super::{tile_position_flatten, Collider, Level, LineBorder, RectHitbox, Tile, TILE_SIZE};
 
 pub const SPRITE_SIZE: (f32, f32) = (32.0, 56.0);
-
-#[derive(Debug)]
-pub struct Input {
-    accelerate: Option<f32>,
-    turn: Option<f32>,
-    brake: Option<f32>,
-    boost: bool,
-    deadzone: f32,
-}
 
 pub struct Player {
     pub sprite: AnimatedSprite,
@@ -32,7 +24,7 @@ pub struct Player {
 
     stat: CarStat,
 
-    input: Input,
+    input: PlayerInput,
 }
 
 impl Player {
@@ -59,6 +51,12 @@ impl Player {
                         frames: 6,
                         fps: 6,
                     },
+                    Animation {
+                        name: "death".to_string(),
+                        row: 2,
+                        frames: 1,
+                        fps: 1,
+                    },
                 ],
                 true,
             ),
@@ -67,20 +65,13 @@ impl Player {
             rotation: 0.0,
             velocity: 0.0,
             stat: *stat,
-            input: Input {
-                accelerate: None,
-                turn: None,
-                brake: None,
-                boost: false,
-                deadzone: 0.1,
-            },
+            input: PlayerInput::default(),
         }
     }
 
-    pub fn update(&mut self, gilrs: &mut Gilrs) {
+    pub fn movement(&mut self, gilrs: &mut Gilrs) {
         let delta_time = get_frame_time();
 
-        // gamepad controls
         while let Some(Event { event, .. }) = gilrs.next_event() {
             match event {
                 EventType::ButtonChanged(Button::RightTrigger2, value, _) => {
@@ -146,6 +137,14 @@ impl Player {
         self.velocity *= 0.98;
     }
 
+    pub fn update(&mut self, gilrs: &mut Gilrs, level: &Level) {
+        if self.collides(&level.tiles) {
+            self.sprite.set_animation(2);
+        } else {
+            self.movement(gilrs);
+        }
+    }
+
     pub fn draw(&mut self) {
         draw_texture_ex(
             &self.texture,
@@ -163,8 +162,6 @@ impl Player {
 
     // allow to dezoom when the car is fast
     pub fn zoom_speed(&self) -> f32 {
-        //ZOOM * (1.0 / self.velocity * 6.0).clamp(0.75, 1.0)
-        //ZOOM * (1.0 - (0.25 * self.velocity) / self.stat.max_velocity)
         ZOOM * ((-LN_2 / (self.stat.max_velocity * self.stat.max_velocity))
             * self.velocity
             * self.velocity)

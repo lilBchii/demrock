@@ -1,59 +1,39 @@
 use game::{
-    clear_viewport, play_music, set_background_cam, set_player_cam, tile_position_flatten,
-    update_viewport, Collider, GameMode, GameState, Level, Levels, LineBorder, MusicParams, Player,
-    RectHitbox, TileType, MAP_SIZE, TILE_DIAG_SIZE, TILE_SIZE,
+    clear_viewport, play_music, set_background_cam, set_player_cam, update_viewport, GameMode,
+    GameState, Level, Levels, MusicParams, Player, Timer,
 };
 use gilrs::*;
 use macroquad::audio::{load_sound, set_sound_volume, stop_sound};
 use macroquad::prelude::*;
 
 use std::error::Error;
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
 
 mod config;
 mod game;
 mod gui;
+mod input;
 
 use config::Config;
-
-/*struct Resources {
-    car: Texture2D,
-}
-
-impl Resources {
-    async fn new() -> Result<Resources, macroquad::Error> {
-        let car = load_texture("assets/sprite.png")
-            .await
-            .expect("car sprite file");
-        car.set_filter(FilterMode::Nearest);
-        Ok(Self { car })
-    }
-}*/
 
 async fn play_level(
     player: &mut Player,
     level: &mut Level,
-    start_time: f64,
+    timer: &mut Timer,
     gilrs: &mut Gilrs,
     font: &Font,
 ) {
     player.init(level.starting_position);
 
-    let mut out = false;
-
     loop {
-        let time = get_time() - start_time;
+        timer.update(get_frame_time() as f64);
+        timer.reset();
 
         clear_background(BLACK);
 
         let viewport = update_viewport();
 
-        let zoom = player.zoom_speed();
-
-        player.update(gilrs);
+        player.update(gilrs, level);
         player.sprite.update();
-
-        out = player.collides(&level.tiles);
 
         // draw background
         set_background_cam(player, viewport);
@@ -61,7 +41,7 @@ async fn play_level(
         clear_viewport();
 
         // main cam
-        set_player_cam(zoom, player, viewport);
+        set_player_cam(player, viewport);
         level.draw_circuit();
         player.draw();
         //player.draw_hitbox();
@@ -71,7 +51,7 @@ async fn play_level(
         set_default_camera();
 
         draw_text_ex(
-            format!("{:.2}s", time).as_str(),
+            format!("{:.2}s", timer.elapsed()).as_str(),
             10.0,
             20.0,
             TextParams {
@@ -102,7 +82,7 @@ async fn play_level(
         //     WHITE,
         // );
 
-        draw_text(format!("out: {}", out).as_str(), 10.0, 60.0, 20.0, WHITE);
+        // draw_text(format!("out: {}", out).as_str(), 10.0, 60.0, 20.0, WHITE);
 
         // draw_text(
         //     format!(
@@ -184,12 +164,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 println!("[OK] loaded.");
 
-                let start_time = get_time();
+                let mut timer = Timer::new(6.0);
 
                 play_level(
                     &mut player,
                     &mut levels[current_level_index],
-                    start_time,
+                    &mut timer,
                     &mut gilrs,
                     &gui_resources.font,
                 )

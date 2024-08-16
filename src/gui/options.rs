@@ -7,11 +7,14 @@ use macroquad::{
     window::{clear_background, next_frame},
 };
 
-use crate::game::{GameState, MusicParams};
 use crate::gui::style::GuiResources;
+use crate::{
+    game::{GameState, MusicParams},
+    input::MenuInput,
+};
 
 use super::{
-    button::{Button, Ui, UserInput},
+    button::{Button, Ui},
     TITLE_FONT_SIZE,
 };
 
@@ -21,13 +24,12 @@ pub async fn options(
     music_params: &mut MusicParams,
 ) -> GameState {
     let mut ui = Ui::default();
-    let mut input = UserInput::new();
-    let prev = 0.0;
+    let mut input = MenuInput::new();
 
     loop {
         clear_background(BLACK);
 
-        input.update(gilrs, prev);
+        input.update(gilrs);
 
         let (sw, sh) = screen_size();
 

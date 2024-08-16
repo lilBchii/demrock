@@ -1,4 +1,4 @@
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
+use std::f32::consts::FRAC_PI_4;
 
 use macroquad::{
     color::RED,
@@ -6,7 +6,7 @@ use macroquad::{
     shapes::{draw_circle, draw_line},
 };
 
-use super::{Player, Rotation, Tile, TileType, TILE_DIAG_SIZE, TILE_SIZE};
+use super::{Rotation, Tile, TileType, TILE_DIAG_SIZE, TILE_SIZE};
 
 pub trait Collider<T> {
     fn collides(&self, other: T) -> bool;

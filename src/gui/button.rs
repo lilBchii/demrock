@@ -10,6 +10,8 @@ use macroquad::{
     window::screen_height,
 };
 
+use crate::input::MenuInput;
+
 use super::GuiResources;
 use super::BUTTON_SIZE;
 
@@ -94,63 +96,6 @@ impl Button {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct UserInput {
-    click: bool,
-    pub down: bool,
-    pub up: bool,
-    pub back: bool,
-    deadzone: f32,
-}
-
-impl UserInput {
-    pub fn new() -> Self {
-        Self {
-            click: false,
-            down: false,
-            up: false,
-            back: false,
-            deadzone: 0.35,
-        }
-    }
-
-    pub fn update(&mut self, gilrs: &mut Gilrs, mut prev: f32) {
-        self.up =
-            is_key_pressed(KeyCode::Z) || is_key_pressed(KeyCode::Up) || is_key_pressed(KeyCode::W);
-        self.down = is_key_pressed(KeyCode::S) || is_key_pressed(KeyCode::Down);
-
-        self.click = is_key_pressed(KeyCode::Enter);
-        self.back = is_key_pressed(KeyCode::Backspace) || is_key_pressed(KeyCode::Escape);
-
-        while let Some(Event { event, .. }) = gilrs.next_event() {
-            match event {
-                EventType::ButtonPressed(GPButton::South, _) => {
-                    self.click = true;
-                }
-                EventType::ButtonReleased(GPButton::South, _) => {
-                    self.click = false;
-                }
-                EventType::ButtonPressed(GPButton::East, _) => {
-                    self.back = true;
-                }
-                EventType::ButtonReleased(GPButton::East, _) => {
-                    self.back = false;
-                }
-                EventType::AxisChanged(Axis::LeftStickY, value, _) => {
-                    if (value > self.deadzone && value > prev)
-                        || (value < self.deadzone && value < prev)
-                    {
-                        prev = value;
-                    }
-                }
-                _ => {}
-            }
-            self.down = prev < -0.985;
-            self.up = prev > 0.985;
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct Ui {
     pub cursor: usize,
@@ -171,7 +116,7 @@ impl Ui {
         self.widgets = buttons;
     }
 
-    pub fn update(&mut self, input: UserInput) {
+    pub fn update(&mut self, input: MenuInput) {
         // update cursor
         if input.up {
             self.cursor = if self.cursor == 0 {

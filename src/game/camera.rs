@@ -45,7 +45,8 @@ pub fn update_viewport() -> Viewport {
     }
 }
 
-pub fn set_player_cam(zoom: f32, player: &Player, viewport: Viewport) {
+pub fn set_player_cam(player: &Player, viewport: Viewport) {
+    let zoom = player.zoom_speed();
     set_camera(&Camera2D {
         zoom: vec2(
             1.0 / TILE_SIZE * zoom,
