@@ -1,6 +1,6 @@
 use game::{
-    clear_viewport, play_music, set_background_cam, set_player_cam, update_viewport, GameMode,
-    GameState, Level, Levels, MusicParams, Player, Timer,
+    clear_viewport, play_music, set_background_cam, set_player_cam, update_viewport, Countdown,
+    GameMode, GameState, Level, Levels, MusicParams, Player, Timer,
 };
 use gilrs::*;
 use macroquad::audio::{load_sound, set_sound_volume, stop_sound};
@@ -23,17 +23,20 @@ async fn play_level(
     font: &Font,
 ) {
     player.init(level.starting_position);
+    let mut countdown = Countdown::new(4.0);
 
     loop {
-        timer.update(get_frame_time() as f64);
-        timer.reset();
+        countdown.update(get_frame_time() as f64);
 
         clear_background(BLACK);
 
         let viewport = update_viewport();
 
-        player.update(gilrs, level);
-        player.sprite.update();
+        if countdown.finished() {
+            player.update(gilrs, level);
+            player.sprite.update();
+            timer.update(get_frame_time() as f64);
+        }
 
         // draw background
         set_background_cam(player, viewport);
@@ -44,16 +47,17 @@ async fn play_level(
         set_player_cam(player, viewport);
         level.draw_circuit();
         player.draw();
-        //player.draw_hitbox();
         clear_viewport();
 
         // draw ui
         set_default_camera();
 
+        countdown.draw(font);
+
         draw_text_ex(
             format!("{:.2}s", timer.elapsed()).as_str(),
-            10.0,
             20.0,
+            30.0,
             TextParams {
                 font: Some(font),
                 font_size: 20,
@@ -69,33 +73,6 @@ async fn play_level(
             20.0,
             WHITE,
         );
-
-        // draw_text(
-        //     format!(
-        //         "player: {:2} {:2} {:2}",
-        //         player.position.x, player.position.y, player.rotation
-        //     )
-        //     .as_str(),
-        //     10.0,
-        //     80.0,
-        //     20.0,
-        //     WHITE,
-        // );
-
-        // draw_text(format!("out: {}", out).as_str(), 10.0, 60.0, 20.0, WHITE);
-
-        // draw_text(
-        //     format!(
-        //         "hitboxes rotated: {:?} {:?}",
-        //         player_hitbox.rotated_points(border.rotation),
-        //         border.rotated_start()
-        //     )
-        //     .as_str(),
-        //     10.0,
-        //     120.0,
-        //     20.0,
-        //     WHITE,
-        // );
 
         if is_key_pressed(KeyCode::Escape) {
             break;
