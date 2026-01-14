@@ -1,7 +1,5 @@
 use bevy::prelude::*;
 
-use crate::common::AppState;
-
 #[derive(Component)]
 pub struct AnimationIndices<const N: usize> {
     // The index of the current animation frame
@@ -22,35 +20,29 @@ pub fn custom_layout<const N: usize>(tile_size: UVec2, indices: [u32; N]) -> Tex
             let top_left = UVec2::new(j as u32 * tile_size.x, top_left_y);
             textures.push(URect {
                 min: top_left,
-                max: top_left + tile_size
+                max: top_left + tile_size,
             });
         }
     }
-    TextureAtlasLayout {
-        size,
-        textures,
-    }
+    TextureAtlasLayout { size, textures }
 }
 
 // Computes atlas index
 pub fn compute_atlas_index(
     animation_line: usize,
     animation_index: usize,
-    animation_indices: &[u32]
+    animation_indices: &[u32],
 ) -> usize {
     let mut start_index = 0;
     for line in 0..animation_line {
         start_index += animation_indices[line];
     }
     let end_index = start_index + animation_indices[animation_line] - 1;
-    println!("start {} || end {}", start_index, end_index);
-    let atlas_index = if (animation_index as u32) >= end_index
-        || (animation_index as u32) < start_index
-    {
-        start_index as usize
-    } else {
-        animation_index + 1
-    };
-    println!("actual index {}", atlas_index);
+    let atlas_index =
+        if (animation_index as u32) >= end_index || (animation_index as u32) < start_index {
+            start_index as usize
+        } else {
+            animation_index + 1
+        };
     atlas_index
 }

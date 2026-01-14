@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
-    animation::{custom_layout, compute_atlas_index, AnimationIndices, AnimationTimer},
+    animation::{compute_atlas_index, custom_layout, AnimationIndices, AnimationTimer},
     common::{
         AppState, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
         CAR_ROTATION, CAR_SPRITE_SIZE,
@@ -209,10 +209,9 @@ fn animate_neutral(
             if timer.0.just_finished() {
                 if let Some(atlas) = &mut sprite.texture_atlas {
                     let animation_line = 0;
-                    if let Some(atlas) = &mut sprite.texture_atlas {
-                        atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
-                        indices.index = atlas.index;
-                    }
+                    atlas.index =
+                        compute_atlas_index(animation_line, indices.index, &indices.indices);
+                    indices.index = atlas.index;
                 }
             }
         }
@@ -250,7 +249,8 @@ fn animate_acceleration(
                     1
                 };
                 if let Some(atlas) = &mut sprite.texture_atlas {
-                    atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
+                    atlas.index =
+                        compute_atlas_index(animation_line, indices.index, &indices.indices);
                     indices.index = atlas.index;
                 }
             }
@@ -276,9 +276,10 @@ fn animate_brake(
         if matches!(state, State::Braking) {
             timer.0.tick(time.delta());
             if timer.0.just_finished() {
-                let animation_line = 3;
                 if let Some(atlas) = &mut sprite.texture_atlas {
-                    atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
+                    let animation_line = 3;
+                    atlas.index =
+                        compute_atlas_index(animation_line, indices.index, &indices.indices);
                     indices.index = atlas.index;
                 }
             }
