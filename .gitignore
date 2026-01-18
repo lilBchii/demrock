@@ -1,5 +1,6 @@
 target
 Cargo.lock
+assets/*.xcf
 assets/**/*.xcf
 assets/**/*.tsx
 assets/**/*.tiled-*
