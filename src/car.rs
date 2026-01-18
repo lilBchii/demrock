@@ -1,5 +1,6 @@
 use avian2d::prelude::{
-    AngularVelocity, Collider, ColliderOf, Collisions, LinearVelocity, RigidBody, Sensor, TransformInterpolation
+    AngularVelocity, Collider, ColliderOf, Collisions, LinearVelocity, RigidBody, Sensor,
+    TransformInterpolation,
 };
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
@@ -17,6 +18,7 @@ pub struct CarPlugin;
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
             (
@@ -28,6 +30,7 @@ impl Plugin for CarPlugin {
                 .run_if(in_state(AppState::Playing)),
         )
         .add_input_context::<Car>()
+        .add_observer(spawn_car)
         .add_observer(input_acceleration)
         .add_observer(input_cancel_acceleration)
         .add_observer(input_rotation)
@@ -87,20 +90,27 @@ struct CarBundle {
     animation_timer: AnimationTimer,
 }
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
+#[require(Transform)]
+#[reflect(Component)]
+struct CarSpawnPoint;
+
 // ---- Sytems ---- //
 
-pub fn spawn_car(
-    commands: &mut Commands,
+fn spawn_car(
+    add_car_spawn: On<Add, CarSpawnPoint>,
+    mut commands: Commands,
+    car_spawn_query: Query<&Transform, With<CarSpawnPoint>>,
+    asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-    asset_server: &Res<AssetServer>,
-    posx: f32,
-    posy: f32,
 ) {
     let tile_size = UVec2::from(CAR_SPRITE_SIZE);
     let atlas_layout_handle = atlas_layouts.add(custom_layout::<CAR_NUM_ANIMATION>(
         tile_size,
         CAR_ANIMATION_INDICES,
     ));
+
+    let spawn_pos = *car_spawn_query.get(add_car_spawn.event().entity).unwrap();
 
     commands.spawn((
         CarBundle {
@@ -113,7 +123,11 @@ pub fn spawn_car(
             rotation_factor: RotationFactor(0.0),
             brake_factor: BrakeFactor(0.0),
             state: State::Neutral,
-            transform: Transform::from_translation(Vec3::new(posx, posy, 1.0)),
+            transform: Transform::from_translation(Vec3::new(
+                spawn_pos.translation.x,
+                spawn_pos.translation.y,
+                1.0,
+            )),
             collider: Collider::rectangle(10.0, 32.0),
             body: RigidBody::Kinematic,
             sprite: Sprite::from_atlas_image(
@@ -170,11 +184,10 @@ fn apply_movement(
     >,
     time: Res<Time>,
 ) {
-    for (mut transform, mut velocity, mut rotation, brake_factor, config) in query.iter_mut()
-    {
+    for (mut transform, mut velocity, mut rotation, brake_factor, config) in query.iter_mut() {
         rotation.0 *= time.delta_secs();
         velocity.0 *= time.delta_secs();
-        
+
         // Apply deceleration
         velocity.0 *= 0.98;
     }
@@ -306,7 +319,8 @@ fn input_rotation(
     rotation: On<Fire<Rotate>>,
     mut q_rotation: Query<(&mut RotationFactor, &mut AngularVelocity, &Config), With<Car>>,
 ) {
-    let (mut angular_velocity, mut rotation_factor, config) = q_rotation.get_mut(rotation.context).unwrap();
+    let (mut angular_velocity, mut rotation_factor, config) =
+        q_rotation.get_mut(rotation.context).unwrap();
     angular_velocity.0 = -rotation.value * config.rotation_speed;
     rotation_factor.0 = -rotation.value;
 }
