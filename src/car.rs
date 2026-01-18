@@ -1,4 +1,6 @@
-use avian2d::prelude::{Collider, RigidBody};
+use avian2d::prelude::{
+    AngularVelocity, Collider, ColliderOf, Collisions, LinearVelocity, RigidBody, Sensor, TransformInterpolation
+};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
@@ -72,7 +74,6 @@ struct CarBundle {
     marker: Car,
     config: Config,
     // inputs
-    velocity: Velocity,
     rotation_factor: RotationFactor,
     brake_factor: BrakeFactor,
     state: State,
@@ -109,13 +110,12 @@ pub fn spawn_car(
                 acceleration: CAR_ACCELERATION,
                 brake: CAR_BRAKE,
             },
-            velocity: Velocity(Vec2::ZERO),
             rotation_factor: RotationFactor(0.0),
             brake_factor: BrakeFactor(0.0),
             state: State::Neutral,
             transform: Transform::from_translation(Vec3::new(posx, posy, 1.0)),
             collider: Collider::rectangle(10.0, 32.0),
-            body: RigidBody::Dynamic,
+            body: RigidBody::Kinematic,
             sprite: Sprite::from_atlas_image(
                 asset_server.load("anim_test.png"),
                 TextureAtlas {
@@ -129,6 +129,7 @@ pub fn spawn_car(
             },
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
+        TransformInterpolation,
         actions!(Car[
             (
                 Action::<Accelerate>::new(),
@@ -160,8 +161,8 @@ fn apply_movement(
     mut query: Query<
         (
             &mut Transform,
-            &mut Velocity,
-            &RotationFactor,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
             &BrakeFactor,
             &Config,
         ),
@@ -169,21 +170,11 @@ fn apply_movement(
     >,
     time: Res<Time>,
 ) {
-    for (mut transform, mut velocity, rotation_factor, brake_factor, car_config) in query.iter_mut()
+    for (mut transform, mut velocity, mut rotation, brake_factor, config) in query.iter_mut()
     {
-        // Apply rotation
-        transform.rotate_z(rotation_factor.0 * car_config.rotation_speed * time.delta_secs());
-        // get the direction in which the front of the car is looking at
-        let movement_direction = transform.rotation * Vec3::Y;
-
-        // Translate the car
-        transform.translation += (
-            velocity.0.extend(0.0) * car_config.acceleration // Apply acceleration
-                * (1.0 - brake_factor.0 * car_config.brake)
-            // Apply brake
-        ) * movement_direction
-            * time.delta_secs();
-
+        rotation.0 *= time.delta_secs();
+        velocity.0 *= time.delta_secs();
+        
         // Apply deceleration
         velocity.0 *= 0.98;
     }
@@ -231,16 +222,16 @@ fn animate_acceleration(
     >,
     time: Res<Time>,
 ) {
-    for (rotation_factor, state, mut timer, mut indices, mut sprite) in &mut q_car {
+    for (rotation, state, mut timer, mut indices, mut sprite) in &mut q_car {
         if matches!(state, State::Accelerating) {
             timer.0.tick(time.delta());
             if timer.0.just_finished() {
                 // Set right animation index according to car rotation
-                let animation_line = if rotation_factor.0 > 0.2 {
+                let animation_line = if rotation.0 > 0.2 {
                     // car turns on the left
                     sprite.flip_x = false;
                     2
-                } else if rotation_factor.0 < -0.2 {
+                } else if rotation.0 < -0.2 {
                     // car turns on the right
                     sprite.flip_x = true;
                     2
@@ -303,27 +294,29 @@ struct Rotate;
 
 fn input_acceleration(
     acceleration: On<Fire<Accelerate>>,
-    mut query: Query<(&mut Velocity, &mut State), With<Car>>,
+    mut query: Query<(&mut LinearVelocity, &Transform, &mut State, &Config), With<Car>>,
 ) {
-    let (mut velocity, mut state) = query.get_mut(acceleration.context).unwrap();
-    velocity.0 = Vec2::splat(acceleration.value);
+    let (mut velocity, transform, mut state, config) = query.get_mut(acceleration.context).unwrap();
+    let dir = transform.rotation * Vec3::Y;
+    velocity.0 = Vec2::splat(acceleration.value * config.acceleration) * Vec2::new(dir.x, dir.y);
     *state = State::Accelerating;
 }
 
 fn input_rotation(
     rotation: On<Fire<Rotate>>,
-    mut q_rotation: Query<&mut RotationFactor, With<Car>>,
+    mut q_rotation: Query<(&mut RotationFactor, &mut AngularVelocity, &Config), With<Car>>,
 ) {
-    let mut rotation_factor = q_rotation.get_mut(rotation.context).unwrap();
+    let (mut angular_velocity, mut rotation_factor, config) = q_rotation.get_mut(rotation.context).unwrap();
+    angular_velocity.0 = -rotation.value * config.rotation_speed;
     rotation_factor.0 = -rotation.value;
 }
 
 fn input_brake(
     brake: On<Fire<Brake>>,
-    mut query: Query<(&mut BrakeFactor, &mut State), With<Car>>,
+    mut query: Query<(&mut LinearVelocity, &mut State, &Config), With<Car>>,
 ) {
-    let (mut brake_factor, mut state) = query.get_mut(brake.context).unwrap();
-    brake_factor.0 = brake.value;
+    let (mut velocity, mut state, config) = query.get_mut(brake.context).unwrap();
+    velocity.0 *= (1.0 - brake.value * config.brake);
     *state = State::Braking;
 }
 
