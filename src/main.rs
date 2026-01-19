@@ -13,7 +13,7 @@ use tilemap::*;
 
 use crate::{
     car::CarPlugin,
-    common::{AppState, MultiplayerMode},
+    common::{AppState, MultiplayerMode, GAME_NAME},
 };
 
 mod animation;
@@ -25,7 +25,15 @@ mod tilemap;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: GAME_NAME.into(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }))
         .add_plugins(TiledPlugin::default())
         .add_plugins(TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default())
         .add_plugins(EnhancedInputPlugin)
@@ -35,7 +43,6 @@ fn main() {
         .insert_state(AppState::Playing)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
-        // .insert_resource(Gravity(Vec2::ZERO))
         .add_systems(Startup, setup_camera)
         //.add_systems(OnEnter(AppState::StartMenu), setup_start_menu)
         .add_systems(OnEnter(AppState::Playing), spawn_demcity_level)
@@ -43,7 +50,7 @@ fn main() {
         // .add_systems(switch_multiplayer_mode.in_set(OnUpdate(AppState::StartMenu)))
         // .add_systems(despawn_screen::<OnStartMenuScreen>.in_schedule(OnExit(AppState::StartMenu)))
         .add_systems(
-            Update,
+            PostUpdate,
             camera_follows_player.run_if(in_state(AppState::Playing)),
         )
         .run();

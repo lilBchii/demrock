@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+pub const GAME_NAME: &str = "Demrock";
+
 pub const CAR_SPEED: f32 = 200.0;
 pub const CAR_ROTATION: f32 = 4.0;
 pub const CAR_ACCELERATION: f32 = 650.0;
