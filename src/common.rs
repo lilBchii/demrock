@@ -15,12 +15,6 @@ pub const CAR_NUM_ANIMATION: usize = 4;
 
 pub const TILE_SIZE: i32 = 24;
 pub const LEVEL_COUNT: i32 = 4;
-pub const LEVEL_HEIGHT: f32 = 2400.0;
-pub const LEVEL_WIDTH: f32 = 3600.0;
-pub const LVL0_P1_START: (f32, f32) = (1670., 702.);
-pub const LVL1_P1_START: (f32, f32) = (2004., 770.);
-pub const LVL2_P1_START: (f32, f32) = (2004., 680.);
-pub const LVL3_P1_START: (f32, f32) = (1935., 655.);
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
 pub enum AppState {
