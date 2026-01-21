@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use avian2d::prelude::LinearVelocity;
 use bevy::prelude::*;
 
@@ -12,25 +14,26 @@ pub fn camera_follows_player(
     mut q_camera: Query<&mut Transform, (With<Camera>, Without<Car>)>,
     time: Res<Time>,
 ) {
-    let Ok((car_transform, car_velocity)) = q_car.single() else {return;};
+    let Ok((car_transform, car_velocity)) = q_car.single() else {
+        return;
+    };
     let mut camera_transform = q_camera.single_mut().unwrap();
+    // Gets the camera follow the player and show more in front as he goes faster
     let translation_target = Vec3::new(
         car_transform.translation.x,
         car_transform.translation.y,
         camera_transform.translation.z,
-    );
+    ) + car_velocity.extend(0.0) * 0.5;
 
     camera_transform
         .translation
-        .smooth_nudge(&translation_target, 9.0, time.delta_secs());
+        .smooth_nudge(&translation_target, 5.0, time.delta_secs());
 
-    let scale_target = Vec3::new(
-        CAMERA_SCALE + car_velocity.0.x * 0.01,
-        CAMERA_SCALE + car_velocity.0.y * 0.01,
-        CAMERA_SCALE,
-    );
+    // Zoom out as the player goes faster
+    let scale_target = Vec2::splat(CAMERA_SCALE)
+        + (car_velocity.0.length() * 0.0005).clamp(0.0, CAMERA_SCALE * 2.0);
 
     camera_transform
         .scale
-        .smooth_nudge(&scale_target, 3.0, time.delta_secs());
+        .smooth_nudge(&scale_target.extend(CAMERA_SCALE), 3.0, time.delta_secs());
 }
