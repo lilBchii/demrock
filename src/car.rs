@@ -19,14 +19,7 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (
-                deccelerate,
-                animate_neutral,
-                animate_acceleration,
-                animate_brake,
-                detect_out,
-            )
-                .run_if(in_state(AppState::Playing)),
+            (deccelerate, animate_car, detect_out).run_if(in_state(AppState::Playing)),
         )
         .add_input_context::<Car>()
         .add_observer(spawn_car)
@@ -203,36 +196,7 @@ fn deccelerate(
     }
 }
 
-// ---- Animation Systems --- //
-
-fn animate_neutral(
-    mut q_car: Query<
-        (
-            &State,
-            &mut AnimationTimer,
-            &mut AnimationIndices<CAR_NUM_ANIMATION>,
-            &mut Sprite,
-        ),
-        With<Car>,
-    >,
-    time: Res<Time>,
-) {
-    for (state, mut timer, mut indices, mut sprite) in &mut q_car {
-        if matches!(state, State::Neutral) {
-            timer.0.tick(time.delta());
-            if timer.0.just_finished() {
-                if let Some(atlas) = &mut sprite.texture_atlas {
-                    let animation_line = 0;
-                    atlas.index =
-                        compute_atlas_index(animation_line, indices.index, &indices.indices);
-                    indices.index = atlas.index;
-                }
-            }
-        }
-    }
-}
-
-fn animate_acceleration(
+fn animate_car(
     mut q_car: Query<
         (
             &RotationFactor,
@@ -246,56 +210,30 @@ fn animate_acceleration(
     time: Res<Time>,
 ) {
     for (rotation, state, mut timer, mut indices, mut sprite) in &mut q_car {
-        if matches!(state, State::Accelerating) {
-            timer.0.tick(time.delta());
-            if timer.0.just_finished() {
-                // Set right animation index according to car rotation
-                let animation_line = if rotation.0 > 0.2 {
-                    // car turns on the left
-                    sprite.flip_x = false;
-                    2
-                } else if rotation.0 < -0.2 {
-                    // car turns on the right
-                    sprite.flip_x = true;
-                    2
-                } else {
-                    // car doesn't turn
-                    1
-                };
-                if let Some(atlas) = &mut sprite.texture_atlas {
-                    atlas.index =
-                        compute_atlas_index(animation_line, indices.index, &indices.indices);
-                    indices.index = atlas.index;
+        timer.0.tick(time.delta());
+        if timer.0.just_finished() {
+            let animation_line = match state {
+                State::Neutral => 0,
+                State::Accelerating => {
+                    if rotation.0 > 0.2 {
+                        // car turns on the left
+                        sprite.flip_x = false;
+                        2
+                    } else if rotation.0 < -0.2 {
+                        // car turns on the right
+                        sprite.flip_x = true;
+                        2
+                    } else {
+                        // car doesn't turn
+                        1
+                    }
                 }
-            }
-        }
-    }
-}
-
-fn animate_die() {}
-
-fn animate_brake(
-    mut q_car: Query<
-        (
-            &State,
-            &mut AnimationTimer,
-            &mut AnimationIndices<CAR_NUM_ANIMATION>,
-            &mut Sprite,
-        ),
-        With<Car>,
-    >,
-    time: Res<Time>,
-) {
-    for (state, mut timer, mut indices, mut sprite) in &mut q_car {
-        if matches!(state, State::Braking) {
-            timer.0.tick(time.delta());
-            if timer.0.just_finished() {
-                if let Some(atlas) = &mut sprite.texture_atlas {
-                    let animation_line = 3;
-                    atlas.index =
-                        compute_atlas_index(animation_line, indices.index, &indices.indices);
-                    indices.index = atlas.index;
-                }
+                State::Braking => 3,
+                State::Falling => 4,
+            };
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
+                indices.index = atlas.index;
             }
         }
     }
