@@ -20,7 +20,7 @@ impl Plugin for CarPlugin {
         app.add_systems(
             Update,
             (
-                apply_movement,
+                deccelerate,
                 animate_neutral,
                 animate_acceleration,
                 animate_brake,
@@ -31,26 +31,17 @@ impl Plugin for CarPlugin {
         .add_input_context::<Car>()
         .add_observer(spawn_car)
         .add_observer(accelerate)
+        .add_observer(rotate)
         .add_observer(input_cancel_acceleration)
-        .add_observer(input_rotation)
         .add_observer(input_brake)
         .add_observer(input_cancel_brake);
     }
 }
 
 // ---- Components ---- //
-
-// Describes velocity along x and y axis
-#[derive(Component)]
-pub struct Velocity(pub Vec2);
-
 #[derive(Component)]
 struct RotationFactor(f32);
 
-#[derive(Component)]
-struct BrakeFactor(f32);
-
-// Marker for a car
 #[derive(Component)]
 pub struct Car;
 
@@ -80,7 +71,6 @@ struct CarBundle {
     config: Config,
     // inputs
     rotation_factor: RotationFactor,
-    brake_factor: BrakeFactor,
     state: State,
     // physics
     transform: Transform,
@@ -124,7 +114,6 @@ fn spawn_car(
                 brake: CAR_BRAKE,
             },
             rotation_factor: RotationFactor(0.0),
-            brake_factor: BrakeFactor(0.0),
             state: State::Neutral,
             transform: Transform::from_translation(Vec3::new(
                 spawn_pos.translation.x,
@@ -203,28 +192,12 @@ fn detect_out(
     }
 }
 
-fn apply_movement(
-    mut query: Query<
-        (
-            &IsGrounded,
-            &mut Transform,
-            &mut LinearVelocity,
-            &mut AngularVelocity,
-            &BrakeFactor,
-            &Config,
-        ),
-        With<Car>,
-    >,
-    time: Res<Time>,
+fn deccelerate(
+    mut query: Query<(&IsGrounded, &mut LinearVelocity, &mut AngularVelocity), With<Car>>,
 ) {
-    for (is_grounded, mut transform, mut velocity, mut rotation, brake_factor, config) in
-        query.iter_mut()
-    {
+    for (is_grounded, mut velocity, mut rotation) in query.iter_mut() {
         if is_grounded.0 {
-            rotation.0 *= time.delta_secs();
-            //velocity.0 *= time.delta_secs();
-
-            // Apply deceleration
+            rotation.0 *= 0.95;
             velocity.0 *= 0.98;
         }
     }
@@ -367,13 +340,14 @@ fn accelerate(
     }
 }
 
-fn input_rotation(
+fn rotate(
     rotation: On<Fire<Rotate>>,
     mut q_rotation: Query<(&mut RotationFactor, &mut AngularVelocity, &Config), With<Car>>,
+    time: Res<Time>,
 ) {
     let (mut rotation_factor, mut angular_velocity, config) =
         q_rotation.get_mut(rotation.context).unwrap();
-    angular_velocity.0 = -rotation.value * config.rotation_speed;
+    angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
     rotation_factor.0 = -rotation.value;
 }
 
