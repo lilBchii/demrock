@@ -35,7 +35,7 @@ fn insert_road_colliders(
 pub fn spawn_demcity_level(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
-            TiledMap(asset_server.load("levels/demcity_copy/map.tmx")),
+            TiledMap(asset_server.load("levels/demcity/map.tmx")),
             TilemapAnchor::Center,
         ))
         .observe(insert_road_colliders)

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="150" height="100" tilewidth="24" tileheight="24" infinite="0" nextlayerid="4" nextobjectid="6">
- <tileset firstgid="1" source="mapatlas.tsx"/>
+ <tileset firstgid="1" source="tileset.tsx"/>
  <tileset firstgid="22" source="../demcity/tileset.tsx"/>
  <layer id="3" name="Tile Layer" width="150" height="100">
   <data encoding="csv">
