@@ -1,7 +1,4 @@
-use avian2d::prelude::{
-    AngularVelocity, Collider, ColliderOf, Collisions, LinearVelocity, RigidBody, Sensor,
-    TransformInterpolation,
-};
+use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
@@ -11,6 +8,7 @@ use crate::{
         AppState, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
         CAR_ROTATION, CAR_SPRITE_SIZE,
     },
+    tilemap::{Road, StartingLine},
 };
 
 // ---- Plugin ---- //
@@ -26,12 +24,13 @@ impl Plugin for CarPlugin {
                 animate_neutral,
                 animate_acceleration,
                 animate_brake,
+                detect_out,
             )
                 .run_if(in_state(AppState::Playing)),
         )
         .add_input_context::<Car>()
         .add_observer(spawn_car)
-        .add_observer(input_acceleration)
+        .add_observer(accelerate)
         .add_observer(input_cancel_acceleration)
         .add_observer(input_rotation)
         .add_observer(input_brake)
@@ -72,6 +71,9 @@ enum State {
     Neutral,
 }
 
+#[derive(Component)]
+struct IsGrounded(pub bool);
+
 #[derive(Bundle)]
 struct CarBundle {
     marker: Car,
@@ -84,6 +86,7 @@ struct CarBundle {
     transform: Transform,
     collider: Collider,
     body: RigidBody,
+    is_grounded: IsGrounded,
     // appearence
     sprite: Sprite,
     animation_indices: AnimationIndices<CAR_NUM_ANIMATION>,
@@ -128,8 +131,9 @@ fn spawn_car(
                 spawn_pos.translation.y,
                 1.0,
             )),
-            collider: Collider::rectangle(10.0, 32.0),
+            collider: Collider::rectangle(2.0, 5.0),
             body: RigidBody::Kinematic,
+            is_grounded: IsGrounded(true),
             sprite: Sprite::from_atlas_image(
                 asset_server.load("anim_test.png"),
                 TextureAtlas {
@@ -144,10 +148,13 @@ fn spawn_car(
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
         TransformInterpolation,
+        Sensor,
+        CollisionEventsEnabled,
         actions!(Car[
             (
                 Action::<Accelerate>::new(),
-                SmoothNudge::default(),
+                LinearStep::new(0.5,0.5),
+                //SmoothNudge::default(),
                 bindings![KeyCode::ArrowUp, GamepadButton::RightTrigger2],
             ),
             (
@@ -171,9 +178,35 @@ fn spawn_car(
     ));
 }
 
+fn detect_out(
+    spatial_query: SpatialQuery,
+    mut car_query: Query<(&Collider, &Transform, &mut IsGrounded, &mut State), With<Car>>,
+    road_query: Query<&Road, Without<StartingLine>>,
+) {
+    for (collider, transform, mut is_grounded, mut state) in car_query.iter_mut() {
+        let intersections = spatial_query.shape_intersections(
+            collider,
+            Vec2::new(transform.translation.x, transform.translation.y),
+            transform.rotation.to_axis_angle().1,
+            &SpatialQueryFilter::default(),
+        );
+        for entity in intersections.iter() {
+            // intersects with road component
+            if road_query.contains(*entity) {
+                if is_grounded.0 {
+                    is_grounded.0 = false;
+                    *state = State::Falling;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 fn apply_movement(
     mut query: Query<
         (
+            &IsGrounded,
             &mut Transform,
             &mut LinearVelocity,
             &mut AngularVelocity,
@@ -184,12 +217,16 @@ fn apply_movement(
     >,
     time: Res<Time>,
 ) {
-    for (mut transform, mut velocity, mut rotation, brake_factor, config) in query.iter_mut() {
-        rotation.0 *= time.delta_secs();
-        velocity.0 *= time.delta_secs();
+    for (is_grounded, mut transform, mut velocity, mut rotation, brake_factor, config) in
+        query.iter_mut()
+    {
+        if is_grounded.0 {
+            rotation.0 *= time.delta_secs();
+            //velocity.0 *= time.delta_secs();
 
-        // Apply deceleration
-        velocity.0 *= 0.98;
+            // Apply deceleration
+            velocity.0 *= 0.98;
+        }
     }
 }
 
@@ -305,21 +342,36 @@ struct Brake;
 #[action_output(f32)]
 struct Rotate;
 
-fn input_acceleration(
+fn accelerate(
     acceleration: On<Fire<Accelerate>>,
-    mut query: Query<(&mut LinearVelocity, &Transform, &mut State, &Config), With<Car>>,
+    mut query: Query<
+        (
+            &mut LinearVelocity,
+            &Transform,
+            &IsGrounded,
+            &mut State,
+            &Config,
+        ),
+        With<Car>,
+    >,
+    time: Res<Time>,
 ) {
-    let (mut velocity, transform, mut state, config) = query.get_mut(acceleration.context).unwrap();
-    let dir = transform.rotation * Vec3::Y;
-    velocity.0 = Vec2::splat(acceleration.value * config.acceleration) * Vec2::new(dir.x, dir.y);
-    *state = State::Accelerating;
+    let (mut velocity, transform, is_grounded, mut state, config) =
+        query.get_mut(acceleration.context).unwrap();
+    if is_grounded.0 {
+        let dir = (transform.rotation * Vec3::Y).truncate();
+        velocity.0 +=
+            Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
+        println!("{}", velocity.length());
+        *state = State::Accelerating;
+    }
 }
 
 fn input_rotation(
     rotation: On<Fire<Rotate>>,
     mut q_rotation: Query<(&mut RotationFactor, &mut AngularVelocity, &Config), With<Car>>,
 ) {
-    let (mut angular_velocity, mut rotation_factor, config) =
+    let (mut rotation_factor, mut angular_velocity, config) =
         q_rotation.get_mut(rotation.context).unwrap();
     angular_velocity.0 = -rotation.value * config.rotation_speed;
     rotation_factor.0 = -rotation.value;

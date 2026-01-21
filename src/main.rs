@@ -25,19 +25,21 @@ mod tilemap;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins
-            .set(ImagePlugin::default_nearest())
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: GAME_NAME.into(),
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: GAME_NAME.into(),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 }),
-                ..Default::default()
-            }))
+        )
         .add_plugins(TiledPlugin::default())
         .add_plugins(TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default())
         .add_plugins(EnhancedInputPlugin)
-        .add_plugins(PhysicsPlugins::default().with_length_unit(2.0))
+        .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
         .add_plugins(PhysicsDebugPlugin)
         .add_plugins(CarPlugin)
         .insert_state(AppState::Playing)
