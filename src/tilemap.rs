@@ -7,7 +7,7 @@ pub struct Road;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Reflect)]
 #[reflect(Component, Default)]
-struct StartingLine;
+pub struct StartingLine;
 
 fn create_starting_line(
     object_created: On<TiledEvent<ObjectCreated>>,
@@ -24,7 +24,7 @@ fn create_starting_line(
 
 fn insert_road_colliders(
     collider_created: On<TiledEvent<ColliderCreated>>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     commands
         .entity(collider_created.event().origin)
