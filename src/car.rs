@@ -135,8 +135,7 @@ fn spawn_car(
         actions!(Car[
             (
                 Action::<Accelerate>::new(),
-                LinearStep::new(0.5,0.5),
-                //SmoothNudge::default(),
+                SmoothNudge::default(),
                 bindings![KeyCode::ArrowUp, GamepadButton::RightTrigger2],
             ),
             (
@@ -280,33 +279,52 @@ fn accelerate(
 
 fn rotate(
     rotation: On<Fire<Rotate>>,
-    mut q_rotation: Query<(&mut RotationFactor, &mut AngularVelocity, &Config), With<Car>>,
+    mut q_rotation: Query<
+        (
+            &mut RotationFactor,
+            &mut AngularVelocity,
+            &IsGrounded,
+            &Config,
+        ),
+        With<Car>,
+    >,
     time: Res<Time>,
 ) {
-    let (mut rotation_factor, mut angular_velocity, config) =
+    let (mut rotation_factor, mut angular_velocity, is_grounded, config) =
         q_rotation.get_mut(rotation.context).unwrap();
-    angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
-    rotation_factor.0 = -rotation.value;
+    if is_grounded.0 {
+        angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
+        rotation_factor.0 = -rotation.value;
+    }
 }
 
 fn input_brake(
     brake: On<Fire<Brake>>,
-    mut query: Query<(&mut LinearVelocity, &mut State, &Config), With<Car>>,
+    mut query: Query<(&mut LinearVelocity, &IsGrounded, &mut State, &Config), With<Car>>,
 ) {
-    let (mut velocity, mut state, config) = query.get_mut(brake.context).unwrap();
-    velocity.0 *= (1.0 - brake.value * config.brake);
-    *state = State::Braking;
+    let (mut velocity, is_grounded, mut state, config) = query.get_mut(brake.context).unwrap();
+    if is_grounded.0 {
+        velocity.0 *= 1.0 - brake.value * config.brake;
+        *state = State::Braking;
+    }
 }
 
 fn input_cancel_acceleration(
     acceleration: On<Complete<Accelerate>>,
-    mut query: Query<&mut State, With<Car>>,
+    mut query: Query<(&IsGrounded, &mut State), With<Car>>,
 ) {
-    let mut state = query.get_mut(acceleration.context).unwrap();
-    *state = State::Neutral;
+    let (is_grounded, mut state) = query.get_mut(acceleration.context).unwrap();
+    if is_grounded.0 {
+        *state = State::Neutral;
+    }
 }
 
-fn input_cancel_brake(brake: On<Complete<Brake>>, mut query: Query<&mut State, With<Car>>) {
-    let mut state = query.get_mut(brake.context).unwrap();
-    *state = State::Neutral;
+fn input_cancel_brake(
+    brake: On<Complete<Brake>>,
+    mut query: Query<(&IsGrounded, &mut State), With<Car>>,
+) {
+    let (is_grounded, mut state) = query.get_mut(brake.context).unwrap();
+    if is_grounded.0 {
+        *state = State::Neutral;
+    }
 }
