@@ -19,7 +19,8 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (deccelerate, animate_car, detect_out).run_if(in_state(AppState::Playing)),
+            (deccelerate, animate_car, detect_out, animate_falling)
+                .run_if(in_state(AppState::Playing)),
         )
         .add_input_context::<Car>()
         .add_observer(spawn_car)
@@ -117,7 +118,7 @@ fn spawn_car(
             body: RigidBody::Kinematic,
             is_grounded: IsGrounded(true),
             sprite: Sprite::from_atlas_image(
-                asset_server.load("anim_test.png"),
+                asset_server.load("racer.png"),
                 TextureAtlas {
                     layout: atlas_layout_handle,
                     index: 0,
@@ -189,7 +190,7 @@ fn deccelerate(
 ) {
     for (is_grounded, mut velocity, mut rotation) in query.iter_mut() {
         if is_grounded.0 {
-            rotation.0 *= 0.95;
+            rotation.0 *= 0.88;
             velocity.0 *= 0.98;
         }
     }
@@ -228,12 +229,34 @@ fn animate_car(
                     }
                 }
                 State::Braking => 3,
-                State::Falling => 4,
+                State::Falling => 0,
             };
             if let Some(atlas) = &mut sprite.texture_atlas {
                 atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
                 indices.index = atlas.index;
             }
+        }
+    }
+}
+
+fn animate_falling(
+    mut car_query: Query<
+        (
+            &mut Transform,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &State,
+        ),
+        With<Car>,
+    >,
+    time: Res<Time>,
+) {
+    for (mut transform, mut velocity, mut angular_velocity, state) in &mut car_query {
+        if matches!(state, State::Falling) {
+            transform.scale = (transform.scale - 0.25 * time.delta_secs()).max(Vec3::ZERO);
+            transform.rotate_z(1.5 * time.delta_secs());
+            velocity.0 *= 0.95;
+            angular_velocity.0 = 0.0;
         }
     }
 }
@@ -272,7 +295,6 @@ fn accelerate(
         let dir = (transform.rotation * Vec3::Y).truncate();
         velocity.0 +=
             Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
-        println!("{}", velocity.length());
         *state = State::Accelerating;
     }
 }
