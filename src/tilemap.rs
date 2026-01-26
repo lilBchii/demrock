@@ -2,6 +2,8 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
+use crate::common::AppState;
+
 #[derive(Component)]
 pub struct Road;
 
@@ -37,6 +39,7 @@ pub fn spawn_demcity_level(mut commands: Commands, asset_server: Res<AssetServer
         .spawn((
             TiledMap(asset_server.load("levels/demcity/map.tmx")),
             TilemapAnchor::Center,
+            DespawnOnExit(AppState::Playing),
         ))
         .observe(insert_road_colliders)
         .observe(create_starting_line);

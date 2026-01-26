@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
@@ -58,6 +60,9 @@ enum State {
 
 #[derive(Component)]
 struct IsGrounded(pub bool);
+
+#[derive(Component)]
+struct FallingTimer(Timer);
 
 #[derive(Bundle)]
 struct CarBundle {
@@ -133,6 +138,8 @@ fn spawn_car(
         TransformInterpolation,
         Sensor,
         CollisionEventsEnabled,
+        FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
+        DespawnOnExit(AppState::Playing),
         actions!(Car[
             (
                 Action::<Accelerate>::new(),
@@ -245,18 +252,25 @@ fn animate_falling(
             &mut Transform,
             &mut LinearVelocity,
             &mut AngularVelocity,
+            &mut FallingTimer,
             &State,
         ),
         With<Car>,
     >,
+    mut next_state: ResMut<NextState<AppState>>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut velocity, mut angular_velocity, state) in &mut car_query {
+    for (mut transform, mut velocity, mut angular_velocity, mut timer, state) in &mut car_query {
         if matches!(state, State::Falling) {
-            transform.scale = (transform.scale - 0.25 * time.delta_secs()).max(Vec3::ZERO);
-            transform.rotate_z(1.5 * time.delta_secs());
-            velocity.0 *= 0.95;
-            angular_velocity.0 = 0.0;
+            timer.0.tick(time.delta());
+            if timer.0.is_finished() {
+                next_state.set(AppState::GameOver);
+            } else {
+                transform.scale = (transform.scale - 0.25 * time.delta_secs()).max(Vec3::ZERO);
+                transform.rotate_z(1.5 * time.delta_secs());
+                velocity.0 *= 0.95;
+                angular_velocity.0 = 0.0;
+            }
         }
     }
 }
