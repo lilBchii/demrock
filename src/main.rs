@@ -1,5 +1,5 @@
-use avian2d::{prelude::PhysicsDebugPlugin, PhysicsPlugins};
-use bevy::prelude::*;
+use avian2d::PhysicsPlugins;
+use bevy::{prelude::*, window::CursorOptions};
 use bevy_ecs_tiled::{
     prelude::{TiledPhysicsAvianBackend, TiledPhysicsPlugin},
     tiled::TiledPlugin,
@@ -32,6 +32,10 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: GAME_NAME.into(),
+                        ..Default::default()
+                    }),
+                    primary_cursor_options: Some(CursorOptions {
+                        visible: false,
                         ..Default::default()
                     }),
                     ..Default::default()
