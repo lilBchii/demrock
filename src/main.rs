@@ -1,7 +1,4 @@
-use avian2d::{
-    prelude::{Gravity, PhysicsDebugPlugin},
-    PhysicsPlugins,
-};
+use avian2d::{prelude::PhysicsDebugPlugin, PhysicsPlugins};
 use bevy::prelude::*;
 use bevy_ecs_tiled::{
     prelude::{TiledPhysicsAvianBackend, TiledPhysicsPlugin},
@@ -14,14 +11,18 @@ use tilemap::*;
 use crate::{
     car::CarPlugin,
     common::{AppState, MultiplayerMode, GAME_NAME},
+    font::FontPlugin,
+    menu::MenuPlugin,
 };
 
 mod animation;
 mod camera;
 mod car;
-mod collision;
 mod common;
+mod font;
+mod menu;
 mod tilemap;
+mod ui;
 
 fn main() {
     App::new()
@@ -36,17 +37,17 @@ fn main() {
                     ..Default::default()
                 }),
         )
-        .add_plugins(TiledPlugin::default())
-        .add_plugins(TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default())
+        .add_plugins((
+            TiledPlugin::default(),
+            TiledPhysicsPlugin::<TiledPhysicsAvianBackend>::default(),
+        ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
-        .add_plugins(PhysicsDebugPlugin)
-        .add_plugins(CarPlugin)
-        .insert_state(AppState::Playing)
+        .add_plugins((FontPlugin, MenuPlugin, CarPlugin))
+        .insert_state(AppState::StartMenu)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
         .add_systems(Startup, setup_camera)
-        //.add_systems(OnEnter(AppState::StartMenu), setup_start_menu)
         .add_systems(OnEnter(AppState::Playing), spawn_demcity_level)
         // .add_systems(start_game.in_set(OnUpdate(AppState::StartMenu)))
         // .add_systems(switch_multiplayer_mode.in_set(OnUpdate(AppState::StartMenu)))

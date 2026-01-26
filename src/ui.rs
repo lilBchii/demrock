@@ -1,87 +1,193 @@
-use bevy::prelude::*;
+use std::borrow::Cow;
 
-use crate::common::{AppState, MultiplayerMode};
+use bevy::{input_focus::InputFocus, math::CompassOctant, prelude::*};
+use bevy_enhanced_input::prelude::*;
+use bevy_ui::auto_directional_navigation::{AutoDirectionalNavigation, AutoDirectionalNavigator};
+
+pub const MENU_BUTTON_SIZE: (f32, f32) = (400.0, 80.0);
+
+const SLICER: TextureSlicer = TextureSlicer {
+    border: BorderRect::all(9.0),
+    center_scale_mode: SliceScaleMode::Stretch,
+    sides_scale_mode: SliceScaleMode::Stretch,
+    max_corner_scale: 1.0,
+};
 
 #[derive(Component)]
-pub struct OnStartMenuScreen;
+#[require(NavInteraction)]
+pub struct NavButton;
+
+#[derive(Component, PartialEq, Eq, Default)]
+pub enum NavInteraction {
+    Select,
+    Click,
+    #[default]
+    None,
+}
+
+impl NavInteraction {
+    fn is_none(&self) -> bool {
+        matches!(self, NavInteraction::None)
+    }
+}
+
+// Updates the NavInteraction components of the NavButton entities
+pub fn nav_interaction(
+    clicks: Single<&ActionEvents, With<Action<ClickUI>>>,
+    mut interactions: Query<(Entity, &mut NavInteraction)>,
+    input_focus: Res<InputFocus>,
+) {
+    for (entity, mut interaction) in &mut interactions {
+        if input_focus.0 == Some(entity) {
+            if clicks.contains(ActionEvents::FIRED) {
+                *interaction = NavInteraction::Click;
+            } else if !matches!(*interaction, NavInteraction::Select) {
+                *interaction = NavInteraction::Select;
+            }
+        } else if !interaction.is_none() {
+            *interaction = NavInteraction::None;
+        }
+    }
+}
+
+// Updates navigation from inputs
+pub fn navigate(
+    navigate: On<Fire<NavigateUI>>,
+    mut auto_directional_navigator: AutoDirectionalNavigator,
+) {
+    // Convert input to direction, then convert to CompassOctant
+    let maybe_direction = Dir2::from_xy(navigate.value.x, navigate.value.y)
+        .ok()
+        .map(CompassOctant::from);
+
+    if let Some(direction) = maybe_direction {
+        match auto_directional_navigator.navigate(direction) {
+            Ok(new_focus) => {
+                println!("nav success {new_focus}");
+            }
+            Err(e) => {
+                println!("nav fail {e}");
+            }
+        }
+    }
+}
+
+// Applies style to the button
+pub fn button_style(
+    mut interaction_query: Query<
+        (&NavInteraction, &mut ImageNode),
+        (Changed<NavInteraction>, With<NavButton>),
+    >,
+) {
+    for (interaction, mut image) in &mut interaction_query {
+        match *interaction {
+            NavInteraction::Click => {
+                image.color = Color::srgb(0.3, 0.13, 0.9);
+            }
+            NavInteraction::Select => {
+                image.color = Color::WHITE;
+            }
+            NavInteraction::None => {
+                image.color = Color::NONE;
+            }
+        }
+    }
+}
+
+pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
+    (
+        Name::new(name),
+        Node {
+            position_type: PositionType::Absolute,
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Start,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(20.0),
+            ..default()
+        },
+        Pickable::IGNORE,
+        UI,
+        actions!(
+            UI[
+            (
+                Action::<ClickUI>::new(),
+                Down::new(0.9),
+                bindings![KeyCode::Space, KeyCode::Enter, GamepadButton::South]
+            ),
+            (
+                Action::<NavigateUI>::new(),
+                Pulse::new(0.4),
+                Bindings::spawn((
+                    Cardinal::arrows(),
+                    Cardinal::dpad()
+                ))
+            )
+        ]),
+    )
+}
+
+pub fn header(title: &'static str, height: Val, font_size: f32, font: Handle<Font>) -> impl Bundle {
+    (
+        Node {
+            width: percent(100),
+            height,
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            flex_direction: FlexDirection::Column,
+            top: Val::ZERO,
+            ..default()
+        },
+        children![(
+            Text::new(title),
+            TextFont::from_font_size(font_size).with_font(font),
+            TextLayout::new_with_justify(Justify::Center),
+        )],
+    )
+}
+
+pub fn nav_button(
+    text: &'static str,
+    width: Val,
+    height: Val,
+    font: Handle<Font>,
+    border_image: Handle<Image>,
+    action: impl Component,
+) -> impl Bundle {
+    (
+        AutoDirectionalNavigation::default(),
+        NavButton,
+        NavInteraction::None,
+        action,
+        ImageNode {
+            image: border_image,
+            image_mode: NodeImageMode::Sliced(SLICER.clone()),
+            ..default()
+        },
+        Node {
+            width,
+            height,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            margin: UiRect::all(px(5)),
+            ..default()
+        },
+        children![(
+            Text::new(text),
+            TextFont::from_font_size(30.0).with_font(font),
+            TextColor(Color::WHITE),
+        )],
+    )
+}
 
 #[derive(Component)]
-pub struct MultiplayerFlag;
+pub struct UI;
 
-// pub fn start_game(keyboard_input: Res<SystemInput<KeyCode>>, mut app_state: ResMut<NextState<AppState>>) {
-//     if keyboard_input.any_just_pressed([KeyCode::Enter, KeyCode::Space]) {
-//         app_state.set(AppState::Playing);
-//     }
-// }
+#[derive(InputAction)]
+#[action_output(Vec2)]
+pub struct NavigateUI;
 
-// pub fn setup_start_menu(mut commands: Commands,
-//                         asset_server: Res<AssetServer>,)
-// {
-//     commands
-//         .spawn((
-//             NodeBundle{
-//                 style: Style {
-//                     size: Size::new(Val::Percent(100.), Val::Percent(100.)),
-//                     align_items: AlignItems::Center,
-//                     justify_content: JustifyContent::Center,
-//                     ..default()
-//                 },
-//                 ..default()
-//             },
-//             OnStartMenuScreen,
-//         ))
-//         .with_children(|parent| {
-//             parent.spawn(
-//                 ImageBundle{
-//                     image: asset_server.load("menu.png").into(),
-//                     ..default()
-//                 }
-//             );
-//             parent.spawn((
-//                 ImageBundle{
-//                     image: asset_server.load("car.png").into(),
-//                     transform: Transform::from_rotation(Quat::from_xyzw(0.,0.,0.707,0.707)),
-//                     style: Style {
-//                         size: Size::new(Val::Px(50.), Val::Px(50.)),
-//                         position_type: PositionType::Absolute,
-//                         position: UiRect {
-//                             top: Val::Px(345.),
-//                             left: Val::Px(450.),
-//                             ..default()
-//                         },
-//                         ..default()
-//                     },
-//                     ..default()
-//                 },
-//                 MultiplayerFlag,
-//             ));
-//         });
-// }
-
-// pub fn despawn_screen<T: Component>(to_despawn: Query<Entity, With<T>>,
-//                                     mut commands: Commands)
-// {
-//     for entity in &to_despawn {
-//         commands.entity(entity).despawn_recursive();
-//     }
-// }
-
-// pub fn switch_multiplayer_mode(kb: Res<Input<KeyCode>>,
-//                                mut multiplayer_mode: ResMut<MultiplayerMode>,
-//                                mut flag: Query<&mut Style, With<MultiplayerFlag>>)
-// {
-//     if kb.any_just_pressed([KeyCode::Up, KeyCode::Down]) {
-//         for mut style in &mut flag {
-//             match *multiplayer_mode {
-//                 MultiplayerMode::SinglePlayer => {
-//                     style.position.top = Val::Px(420.);
-//                     *multiplayer_mode = MultiplayerMode::TwoPlayers;
-//                 },
-//                 MultiplayerMode::TwoPlayers => {
-//                     style.position.top = Val::Px(345.);
-//                     *multiplayer_mode = MultiplayerMode::SinglePlayer;
-//                 },
-//             }
-//         }
-//     }
-// }
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct ClickUI;
