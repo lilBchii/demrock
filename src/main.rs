@@ -47,15 +47,11 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
-        .add_plugins((FontPlugin, MenuPlugin, CarPlugin))
+        .add_plugins((FontPlugin, MenuPlugin, CarPlugin, LevelPlugin))
         .insert_state(AppState::StartMenu)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
         .add_systems(Startup, setup_camera)
-        .add_systems(OnEnter(AppState::Playing), spawn_demcity_level)
-        // .add_systems(start_game.in_set(OnUpdate(AppState::StartMenu)))
-        // .add_systems(switch_multiplayer_mode.in_set(OnUpdate(AppState::StartMenu)))
-        // .add_systems(despawn_screen::<OnStartMenuScreen>.in_schedule(OnExit(AppState::StartMenu)))
         .add_systems(
             PostUpdate,
             camera_follows_player.run_if(in_state(AppState::Playing)),

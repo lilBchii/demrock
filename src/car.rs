@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
@@ -10,7 +8,6 @@ use crate::{
         AppState, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
         CAR_ROTATION, CAR_SPRITE_SIZE,
     },
-    tilemap::{Road, StartingLine},
 };
 
 // ---- Plugin ---- //
@@ -21,8 +18,7 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (deccelerate, animate_car, detect_out, animate_falling)
-                .run_if(in_state(AppState::Playing)),
+            (deccelerate, animate_car, animate_falling).run_if(in_state(AppState::Playing)),
         )
         .add_input_context::<Car>()
         .add_observer(spawn_car)
@@ -51,7 +47,7 @@ struct Config {
 }
 
 #[derive(Component)]
-enum State {
+pub enum State {
     Accelerating,
     Falling,
     Braking,
@@ -59,7 +55,7 @@ enum State {
 }
 
 #[derive(Component)]
-struct IsGrounded(pub bool);
+pub struct IsGrounded(pub bool);
 
 #[derive(Component)]
 struct FallingTimer(Timer);
@@ -136,8 +132,6 @@ fn spawn_car(
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
         TransformInterpolation,
-        Sensor,
-        CollisionEventsEnabled,
         FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
         DespawnOnExit(AppState::Playing),
         actions!(Car[
@@ -167,30 +161,30 @@ fn spawn_car(
     ));
 }
 
-fn detect_out(
-    spatial_query: SpatialQuery,
-    mut car_query: Query<(&Collider, &Transform, &mut IsGrounded, &mut State), With<Car>>,
-    road_query: Query<&Road, Without<StartingLine>>,
-) {
-    for (collider, transform, mut is_grounded, mut state) in car_query.iter_mut() {
-        let intersections = spatial_query.shape_intersections(
-            collider,
-            Vec2::new(transform.translation.x, transform.translation.y),
-            transform.rotation.to_axis_angle().1,
-            &SpatialQueryFilter::default(),
-        );
-        for entity in intersections.iter() {
-            // intersects with road component
-            if road_query.contains(*entity) {
-                if is_grounded.0 {
-                    is_grounded.0 = false;
-                    *state = State::Falling;
-                    break;
-                }
-            }
-        }
-    }
-}
+// fn detect_out(
+//     spatial_query: SpatialQuery,
+//     mut car_query: Query<(&Collider, &Transform, &mut IsGrounded, &mut State), With<Car>>,
+//     road_query: Query<&Road, Without<TriggerZone>>,
+// ) {
+//     for (collider, transform, mut is_grounded, mut state) in car_query.iter_mut() {
+//         let intersections = spatial_query.shape_intersections(
+//             collider,
+//             Vec2::new(transform.translation.x, transform.translation.y),
+//             transform.rotation.to_axis_angle().1,
+//             &SpatialQueryFilter::default(),
+//         );
+//         for entity in intersections.iter() {
+//             // intersects with road component
+//             if road_query.contains(*entity) {
+//                 if is_grounded.0 {
+//                     is_grounded.0 = false;
+//                     *state = State::Falling;
+//                     break;
+//                 }
+//             }
+//         }
+//     }
+// }
 
 fn deccelerate(
     mut query: Query<(&IsGrounded, &mut LinearVelocity, &mut AngularVelocity), With<Car>>,
