@@ -1,7 +1,5 @@
 use bevy::{
-    input_focus::{
-        directional_navigation::DirectionalNavigationPlugin, InputDispatchPlugin, InputFocus,
-    },
+    input_focus::{directional_navigation::DirectionalNavigationPlugin, InputDispatchPlugin},
     prelude::*,
 };
 use bevy_enhanced_input::prelude::*;

@@ -1,15 +1,23 @@
-use std::f32::consts::PI;
-
 use avian2d::prelude::LinearVelocity;
 use bevy::prelude::*;
 
 use crate::{car::Car, common::CAMERA_SCALE};
 
-pub fn setup_camera(mut commands: Commands) {
+pub struct CameraPlugin;
+
+impl Plugin for CameraPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(ClearColor(Color::BLACK))
+            .add_systems(Startup, setup_camera)
+            .add_systems(PostUpdate, camera_follows_player);
+    }
+}
+
+fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2d);
 }
 
-pub fn camera_follows_player(
+fn camera_follows_player(
     q_car: Query<(&Transform, &LinearVelocity), With<Car>>,
     mut q_camera: Query<&mut Transform, (With<Camera>, Without<Car>)>,
     time: Res<Time>,

@@ -47,14 +47,9 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
-        .add_plugins((FontPlugin, MenuPlugin, CarPlugin, LevelPlugin))
+        .add_plugins((FontPlugin, CameraPlugin, MenuPlugin, CarPlugin, LevelPlugin))
         .insert_state(AppState::StartMenu)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
-        .add_systems(Startup, setup_camera)
-        .add_systems(
-            PostUpdate,
-            camera_follows_player.run_if(in_state(AppState::Playing)),
-        )
         .run();
 }
