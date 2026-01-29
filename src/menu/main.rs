@@ -102,9 +102,6 @@ pub fn update_state(
                 MenuAction::Play => {
                     next_state.set(AppState::Playing);
                 }
-                MenuAction::Settings => {
-                    next_state.set(AppState::GameOver);
-                }
                 MenuAction::Quit => {
                     app_exit.write(AppExit::Success);
                 }
