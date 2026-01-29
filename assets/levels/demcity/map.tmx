@@ -112,7 +112,7 @@
    </properties>
    <point/>
   </object>
-  <object id="4" x="1230" y="1059" width="108" height="18">
+  <object id="4" x="1230" y="1075" width="108" height="2">
    <properties>
     <property name="startingline" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
@@ -121,7 +121,7 @@
     </property>
    </properties>
   </object>
-  <object id="6" x="3318" y="1083" width="108" height="4">
+  <object id="6" x="3318" y="1085" width="108" height="2">
    <properties>
     <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
@@ -135,7 +135,7 @@
     </property>
    </properties>
   </object>
-  <object id="7" x="1195" y="1948" width="4" height="113">
+  <object id="7" x="1197" y="1948" width="2" height="113">
    <properties>
     <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
@@ -149,7 +149,7 @@
     </property>
    </properties>
   </object>
-  <object id="8" x="1229" y="1703" width="109" height="3">
+  <object id="8" x="1229" y="1704" width="109" height="2">
    <properties>
     <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
