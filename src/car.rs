@@ -60,6 +60,12 @@ pub struct IsGrounded(pub bool);
 #[derive(Component)]
 struct FallingTimer(Timer);
 
+#[derive(Component)]
+pub struct Progression {
+    pub last_checkpoint: u8,
+    pub current_turn: u8,
+}
+
 #[derive(Bundle)]
 struct CarBundle {
     marker: Car,
@@ -133,6 +139,10 @@ fn spawn_car(
         },
         TransformInterpolation,
         FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
+        Progression {
+            last_checkpoint: 0,
+            current_turn: 0,
+        },
         DespawnOnExit(AppState::Playing),
         actions!(Car[
             (
