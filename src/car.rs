@@ -171,31 +171,6 @@ fn spawn_car(
     ));
 }
 
-// fn detect_out(
-//     spatial_query: SpatialQuery,
-//     mut car_query: Query<(&Collider, &Transform, &mut IsGrounded, &mut State), With<Car>>,
-//     road_query: Query<&Road, Without<TriggerZone>>,
-// ) {
-//     for (collider, transform, mut is_grounded, mut state) in car_query.iter_mut() {
-//         let intersections = spatial_query.shape_intersections(
-//             collider,
-//             Vec2::new(transform.translation.x, transform.translation.y),
-//             transform.rotation.to_axis_angle().1,
-//             &SpatialQueryFilter::default(),
-//         );
-//         for entity in intersections.iter() {
-//             // intersects with road component
-//             if road_query.contains(*entity) {
-//                 if is_grounded.0 {
-//                     is_grounded.0 = false;
-//                     *state = State::Falling;
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-// }
-
 fn deccelerate(
     mut query: Query<(&IsGrounded, &mut LinearVelocity, &mut AngularVelocity), With<Car>>,
 ) {
@@ -307,13 +282,15 @@ fn accelerate(
     >,
     time: Res<Time>,
 ) {
-    let (mut velocity, transform, is_grounded, mut state, config) =
-        query.get_mut(acceleration.context).unwrap();
-    if is_grounded.0 {
-        let dir = (transform.rotation * Vec3::Y).truncate();
-        velocity.0 +=
-            Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
-        *state = State::Accelerating;
+    if let Ok((mut velocity, transform, is_grounded, mut state, config)) =
+        query.get_mut(acceleration.context)
+    {
+        if is_grounded.0 {
+            let dir = (transform.rotation * Vec3::Y).truncate();
+            velocity.0 +=
+                Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
+            *state = State::Accelerating;
+        }
     }
 }
 
@@ -330,11 +307,13 @@ fn rotate(
     >,
     time: Res<Time>,
 ) {
-    let (mut rotation_factor, mut angular_velocity, is_grounded, config) =
-        q_rotation.get_mut(rotation.context).unwrap();
-    if is_grounded.0 {
-        angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
-        rotation_factor.0 = -rotation.value;
+    if let Ok((mut rotation_factor, mut angular_velocity, is_grounded, config)) =
+        q_rotation.get_mut(rotation.context)
+    {
+        if is_grounded.0 {
+            angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
+            rotation_factor.0 = -rotation.value;
+        }
     }
 }
 
@@ -342,10 +321,11 @@ fn input_brake(
     brake: On<Fire<Brake>>,
     mut query: Query<(&mut LinearVelocity, &IsGrounded, &mut State, &Config), With<Car>>,
 ) {
-    let (mut velocity, is_grounded, mut state, config) = query.get_mut(brake.context).unwrap();
-    if is_grounded.0 {
-        velocity.0 *= 1.0 - brake.value * config.brake;
-        *state = State::Braking;
+    if let Ok((mut velocity, is_grounded, mut state, config)) = query.get_mut(brake.context) {
+        if is_grounded.0 {
+            velocity.0 *= 1.0 - brake.value * config.brake;
+            *state = State::Braking;
+        }
     }
 }
 
@@ -353,9 +333,10 @@ fn input_cancel_acceleration(
     acceleration: On<Complete<Accelerate>>,
     mut query: Query<(&IsGrounded, &mut State), With<Car>>,
 ) {
-    let (is_grounded, mut state) = query.get_mut(acceleration.context).unwrap();
-    if is_grounded.0 {
-        *state = State::Neutral;
+    if let Ok((is_grounded, mut state)) = query.get_mut(acceleration.context) {
+        if is_grounded.0 {
+            *state = State::Neutral;
+        }
     }
 }
 
@@ -363,8 +344,9 @@ fn input_cancel_brake(
     brake: On<Complete<Brake>>,
     mut query: Query<(&IsGrounded, &mut State), With<Car>>,
 ) {
-    let (is_grounded, mut state) = query.get_mut(brake.context).unwrap();
-    if is_grounded.0 {
-        *state = State::Neutral;
+    if let Ok((is_grounded, mut state)) = query.get_mut(brake.context) {
+        if is_grounded.0 {
+            *state = State::Neutral;
+        }
     }
 }
