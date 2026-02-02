@@ -60,16 +60,7 @@ pub fn navigate(
         .ok()
         .map(CompassOctant::from);
 
-    if let Some(direction) = maybe_direction {
-        match auto_directional_navigator.navigate(direction) {
-            Ok(new_focus) => {
-                println!("nav success {new_focus}");
-            }
-            Err(e) => {
-                println!("nav fail {e}");
-            }
-        }
-    }
+    maybe_direction.and_then(|dir| auto_directional_navigator.navigate(dir).ok());
 }
 
 // Applies style to the button
