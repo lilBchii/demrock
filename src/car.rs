@@ -8,6 +8,7 @@ use crate::{
         AppState, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
         CAR_ROTATION, CAR_SPRITE_SIZE,
     },
+    gameplay::PlayingState,
 };
 
 // ---- Plugin ---- //
@@ -18,8 +19,9 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (deccelerate, animate_car, animate_falling).run_if(in_state(AppState::Playing)),
+            (deccelerate, animate_car, animate_falling).run_if(in_state(PlayingState::Racing)),
         )
+        .add_systems(OnEnter(PlayingState::Racing), enable_input)
         .add_input_context::<Car>()
         .add_observer(spawn_car)
         .add_observer(accelerate)
@@ -87,7 +89,7 @@ struct CarBundle {
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
 #[require(Transform)]
 #[reflect(Component)]
-struct CarSpawnPoint;
+pub struct CarSpawnPoint;
 
 // ---- Sytems ---- //
 
@@ -104,6 +106,7 @@ fn spawn_car(
         CAR_ANIMATION_INDICES,
     ));
 
+    // TODO: manage error
     let spawn_pos = *car_spawn_query.get(add_car_spawn.event().entity).unwrap();
 
     commands.spawn((
@@ -144,7 +147,12 @@ fn spawn_car(
             current_turn: 0,
         },
         DespawnOnExit(AppState::Playing),
-        actions!(Car[
+    ));
+}
+
+fn enable_input(mut commands: Commands, car_query: Query<Entity, With<Car>>) {
+    car_query.iter().for_each(|e| {
+        commands.entity(e).insert(actions!(Car[
             (
                 Action::<Accelerate>::new(),
                 SmoothNudge::default(),
@@ -167,8 +175,8 @@ fn spawn_car(
                     Axial::left_stick(),
                 )),
             ),
-        ]),
-    ));
+        ]));
+    });
 }
 
 fn deccelerate(

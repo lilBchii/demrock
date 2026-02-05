@@ -12,6 +12,7 @@ use crate::{
     car::CarPlugin,
     common::{AppState, MultiplayerMode, GAME_NAME},
     font::FontPlugin,
+    gameplay::GameplayPlugin,
     menu::MenuPlugin,
 };
 
@@ -20,6 +21,7 @@ mod camera;
 mod car;
 mod common;
 mod font;
+mod gameplay;
 mod menu;
 mod tilemap;
 mod ui;
@@ -47,7 +49,14 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
-        .add_plugins((FontPlugin, CameraPlugin, MenuPlugin, CarPlugin, LevelPlugin))
+        .add_plugins((
+            FontPlugin,
+            CameraPlugin,
+            MenuPlugin,
+            CarPlugin,
+            LevelPlugin,
+            GameplayPlugin,
+        ))
         .insert_state(AppState::StartMenu)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
