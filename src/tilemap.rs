@@ -83,7 +83,6 @@ pub fn handle_trigger_zone_collision(
                     progression.current_turn += 1;
                     progression.last_checkpoint = 0;
                     laps_time.0.push(time_since_start.0.elapsed_secs());
-                    println!("trigger");
                     commands.trigger(CrossTheLine { entity });
                 }
             }
@@ -190,7 +189,6 @@ fn update_time_by_lap_display(
                 .scan(0.0, |state, time| {
                     let lap_time = time - *state;
                     *state = *time;
-                    println!("lap time: {} | state: {} | time: {}", lap_time, state, time);
                     Some(lap_time)
                 })
                 .skip(1)
@@ -235,6 +233,22 @@ pub fn spawn_playground_level(mut commands: Commands, asset_server: Res<AssetSer
             TiledMap(asset_server.load("levels/the_playground/map.tmx")),
             TilemapAnchor::Center,
             NumberOfLaps(3),
+            DespawnOnExit(AppState::Playing),
+        ))
+        .observe(insert_road_colliders);
+}
+
+// Spawn Galabusa level
+//
+// Credits:
+// Design: Grégoire Genouville
+// Tiles: Grégoire Genouville
+pub fn spawn_galabusa_level(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn((
+            TiledMap(asset_server.load("levels/galabusa/map.tmx")),
+            TilemapAnchor::Center,
+            NumberOfLaps(4),
             DespawnOnExit(AppState::Playing),
         ))
         .observe(insert_road_colliders);
