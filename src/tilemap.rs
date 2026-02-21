@@ -2,9 +2,10 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
-use crate::car::{Car, IsGrounded, Progression, State};
+use crate::car::{Car, IsGrounded, LapsTime, Progression, State};
 use crate::common::AppState;
 use crate::font::FontAssets;
+use crate::gameplay::{CrossTheLine, TimeSinceStart};
 
 pub struct LevelPlugin;
 
@@ -17,10 +18,15 @@ impl Plugin for LevelPlugin {
             )
             .add_systems(
                 Update,
-                (handle_trigger_zone_collision, update_turn_display)
+                (
+                    handle_trigger_zone_collision,
+                    update_lap_display,
+                    update_total_time_display,
+                )
                     .run_if(in_state(AppState::Playing)),
             )
-            .add_observer(detect_car_out);
+            .add_observer(detect_car_out)
+            .add_observer(update_time_by_lap_display);
     }
 }
 
@@ -37,16 +43,24 @@ pub enum TriggerZone {
 }
 
 #[derive(Component)]
+pub struct NumberOfLaps(usize);
+
+#[derive(Component)]
 struct CurrentTurnDisplay;
 
 #[derive(Component)]
-struct TimeDisplay;
+struct TotalTimeDisplay;
+
+#[derive(Component)]
+struct LapTimeDisplay;
 
 pub fn handle_trigger_zone_collision(
+    mut commands: Commands,
     mut message_reader: MessageReader<CollisionStart>,
     zone_query: Query<&TriggerZone>,
     collider_query: Query<&TiledColliderOf>,
-    mut car_query: Query<(&mut Transform, &mut Progression), With<Car>>,
+    mut car_query: Query<(Entity, &mut Transform, &mut Progression, &mut LapsTime), With<Car>>,
+    time_since_start: Res<TimeSinceStart>,
 ) {
     for evt in message_reader.read() {
         let Ok(zone) = collider_query
@@ -58,7 +72,9 @@ pub fn handle_trigger_zone_collision(
         let Some(actor_entity) = evt.body2 else {
             return;
         };
-        let Ok((mut transform, mut progression)) = car_query.get_mut(actor_entity) else {
+        let Ok((entity, mut transform, mut progression, mut laps_time)) =
+            car_query.get_mut(actor_entity)
+        else {
             return;
         };
         match zone {
@@ -66,6 +82,9 @@ pub fn handle_trigger_zone_collision(
                 if progression.last_checkpoint == 3 || progression.current_turn == 0 {
                     progression.current_turn += 1;
                     progression.last_checkpoint = 0;
+                    laps_time.0.push(time_since_start.0.elapsed_secs());
+                    println!("trigger");
+                    commands.trigger(CrossTheLine { entity });
                 }
             }
             TriggerZone::CheckPoint(n) => {
@@ -122,23 +141,78 @@ fn setup_gameplay_ui(mut commands: Commands, fonts: Res<FontAssets>) {
             padding: UiRect::all(px(10)),
             ..default()
         },
-        children![(
-            CurrentTurnDisplay,
-            Text::new("turn: 0/3"),
-            TextFont::from_font_size(20.0).with_font(fonts.default.clone()),
-        )],
+        children![
+            (
+                CurrentTurnDisplay,
+                Text::new("lap: 0/3"),
+                TextFont::from_font_size(20.0).with_font(fonts.default.clone()),
+            ),
+            (
+                TotalTimeDisplay,
+                Text::new(""),
+                TextFont::from_font_size(20.0).with_font(fonts.default.clone()),
+            ),
+            (
+                LapTimeDisplay,
+                Text::new(""),
+                TextFont::from_font_size(15.0).with_font(fonts.default.clone()),
+            )
+        ],
         DespawnOnExit(AppState::Playing),
     ));
 }
 
-fn update_turn_display(
+fn update_lap_display(
     progression_query: Query<&Progression, With<Car>>,
-    mut text_query: Query<&mut Text, With<CurrentTurnDisplay>>,
+    n_lap_query: Query<&NumberOfLaps>,
+    mut lap_query: Query<&mut Text, With<CurrentTurnDisplay>>,
 ) {
-    if let Ok(mut text) = text_query.single_mut() {
-        if let Ok(progression) = progression_query.single() {
-            *text = format!("turn: {}/3", progression.current_turn).into();
+    if let Ok(progression) = progression_query.single() {
+        if let Ok(mut text) = lap_query.single_mut() {
+            if let Ok(number_of_laps) = n_lap_query.single() {
+                *text = format!("lap: {}/{}", progression.current_turn, number_of_laps.0).into();
+            }
         }
+    }
+}
+
+fn update_time_by_lap_display(
+    _: On<CrossTheLine>,
+    progression_query: Query<&LapsTime, With<Car>>,
+    mut lap_time_query: Query<&mut Text, With<LapTimeDisplay>>,
+) {
+    if let Ok(laps_time) = progression_query.single() {
+        if let Ok(mut text) = lap_time_query.single_mut() {
+            let mut string_buffer = String::new();
+            for (lap, time) in laps_time
+                .0
+                .iter()
+                .scan(0.0, |state, time| {
+                    let lap_time = time - *state;
+                    *state = *time;
+                    println!("lap time: {} | state: {} | time: {}", lap_time, state, time);
+                    Some(lap_time)
+                })
+                .skip(1)
+                .enumerate()
+            {
+                string_buffer.push_str(&format!("lap {}: {:.3}\n", lap + 1, time));
+            }
+            *text = string_buffer.into();
+        }
+    }
+}
+
+fn update_total_time_display(
+    total_time_res: Res<TimeSinceStart>,
+    mut total_time_text_query: Query<&mut Text, With<TotalTimeDisplay>>,
+) {
+    if let Ok(mut text) = total_time_text_query.single_mut() {
+        *text = format!(
+            "Total time: {:.3}",
+            total_time_res.0.elapsed().as_secs_f32()
+        )
+        .into();
     }
 }
 
@@ -148,6 +222,7 @@ pub fn spawn_demcity_level(mut commands: Commands, asset_server: Res<AssetServer
         .spawn((
             TiledMap(asset_server.load("levels/demcity/map.tmx")),
             TilemapAnchor::Center,
+            NumberOfLaps(3),
             DespawnOnExit(AppState::Playing),
         ))
         .observe(insert_road_colliders);
@@ -159,6 +234,7 @@ pub fn spawn_playground_level(mut commands: Commands, asset_server: Res<AssetSer
         .spawn((
             TiledMap(asset_server.load("levels/the_playground/map.tmx")),
             TilemapAnchor::Center,
+            NumberOfLaps(3),
             DespawnOnExit(AppState::Playing),
         ))
         .observe(insert_road_colliders);

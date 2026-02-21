@@ -1,9 +1,12 @@
 use bevy::app::Update;
 use bevy::asset::{AssetServer, Assets};
 use bevy::ecs::component::Component;
+use bevy::ecs::entity::Entity;
+use bevy::ecs::event::EntityEvent;
 use bevy::ecs::lifecycle::Add;
 use bevy::ecs::observer::On;
 use bevy::ecs::query::With;
+use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::{Commands, Query, Res, ResMut};
 use bevy::image::{TextureAtlas, TextureAtlasLayout};
@@ -14,7 +17,8 @@ use bevy::state::app::AppExtStates;
 use bevy::state::condition::in_state;
 use bevy::state::state::{NextState, SubStates};
 use bevy::state::state_scoped::DespawnOnExit;
-use bevy::time::{Time, Timer, TimerMode};
+use bevy::time::{Stopwatch, Time, Timer, TimerMode};
+use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent};
 
 use crate::animation::AnimationTimer;
 use crate::car::CarSpawnPoint;
@@ -25,10 +29,15 @@ pub struct GameplayPlugin;
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_sub_state::<PlayingState>()
+            .insert_resource(TimeSinceStart(Stopwatch::new()))
             .add_observer(spawn_countdown)
+            .add_observer(reset_stopwatch)
             .add_systems(
                 Update,
-                play_countdown.run_if(in_state(PlayingState::Countdown)),
+                (
+                    play_countdown.run_if(in_state(PlayingState::Countdown)),
+                    update_stopwatch.run_if(in_state(PlayingState::Racing)),
+                ),
             );
     }
 }
@@ -49,6 +58,9 @@ impl Default for StartCountdown {
         Self(Timer::from_seconds(5.0, TimerMode::Once))
     }
 }
+
+#[derive(Resource)]
+pub struct TimeSinceStart(pub Stopwatch);
 
 fn spawn_countdown(
     add_spawn: On<Add, CarSpawnPoint>,
@@ -105,11 +117,20 @@ fn play_countdown(
                 } else {
                     atlas.index += 1;
                 }
-                println!(
-                    countdown_timer.0.elapsed_secs(),
-                    atlas.index
-                );
             }
         }
     }
+}
+
+fn update_stopwatch(mut stopwatch_res: ResMut<TimeSinceStart>, time: Res<Time>) {
+    stopwatch_res.0.tick(time.delta());
+}
+
+fn reset_stopwatch(_: On<TiledEvent<MapCreated>>, mut stopwatch_res: ResMut<TimeSinceStart>) {
+    stopwatch_res.0.reset();
+}
+
+#[derive(EntityEvent)]
+pub struct CrossTheLine {
+    pub entity: Entity,
 }

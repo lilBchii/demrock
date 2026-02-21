@@ -68,6 +68,12 @@ pub struct Progression {
     pub current_turn: u8,
 }
 
+// Component storing time elapsed since begining of the race and the end of a lap
+// Lap 0 ends LapsTime.0[0] seconds after the begining of the race,
+// Lap 1 LapsTime.0[1] ...
+#[derive(Component)]
+pub struct LapsTime(pub Vec<f32>);
+
 #[derive(Bundle)]
 struct CarBundle {
     marker: Car,
@@ -146,6 +152,7 @@ fn spawn_car(
             last_checkpoint: 0,
             current_turn: 0,
         },
+        LapsTime(Vec::new()),
         DespawnOnExit(AppState::Playing),
     ));
 }
