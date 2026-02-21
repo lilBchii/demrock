@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="150" height="100" tilewidth="24" tileheight="24" infinite="0" nextlayerid="4" nextobjectid="9">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="150" height="100" tilewidth="24" tileheight="24" infinite="0" nextlayerid="11" nextobjectid="11">
  <tileset firstgid="1" source="tileset.tsx"/>
+ <imagelayer id="10" name="background1" parallaxx="0.75" parallaxy="0.75">
+  <image source="background.png" width="3600" height="2400"/>
+ </imagelayer>
  <layer id="3" name="Tile Layer" width="150" height="100">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -106,13 +109,13 @@
 </data>
  </layer>
  <objectgroup id="2" name="Indicators Layer">
-  <object id="2" name="StartingPositionSolo" x="1284" y="1150">
+  <object id="2" name="StartingPositionSolo" x="1284" y="1114">
    <properties>
     <property name="spawnSinglePlayer" type="class" propertytype="cargame::car::CarSpawnPoint"/>
    </properties>
    <point/>
   </object>
-  <object id="4" x="1230" y="1075" width="108" height="2">
+  <object id="4" x="1226" y="1076" width="116" height="1">
    <properties>
     <property name="startingline" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
@@ -135,20 +138,6 @@
     </property>
    </properties>
   </object>
-  <object id="7" x="1197" y="1948" width="2" height="113">
-   <properties>
-    <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
-     <properties>
-      <property name=":variant" propertytype="cargame::tilemap::TriggerZone:::Variant" value="CheckPoint"/>
-      <property name="CheckPoint" type="class" propertytype="cargame::tilemap::TriggerZone::CheckPoint">
-       <properties>
-        <property name="0" type="int" value="2"/>
-       </properties>
-      </property>
-     </properties>
-    </property>
-   </properties>
-  </object>
   <object id="8" x="1229" y="1704" width="109" height="2">
    <properties>
     <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
@@ -157,6 +146,20 @@
       <property name="CheckPoint" type="class" propertytype="cargame::tilemap::TriggerZone::CheckPoint">
        <properties>
         <property name="0" type="int" value="3"/>
+       </properties>
+      </property>
+     </properties>
+    </property>
+   </properties>
+  </object>
+  <object id="10" x="194" y="2114" width="116" height="1">
+   <properties>
+    <property name="checkpoint" type="class" propertytype="cargame::tilemap::TriggerZone">
+     <properties>
+      <property name=":variant" propertytype="cargame::tilemap::TriggerZone:::Variant" value="CheckPoint"/>
+      <property name="CheckPoint" type="class" propertytype="cargame::tilemap::TriggerZone::CheckPoint">
+       <properties>
+        <property name="0" type="int" value="2"/>
        </properties>
       </property>
      </properties>

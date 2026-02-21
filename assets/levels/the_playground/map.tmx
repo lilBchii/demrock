@@ -106,7 +106,7 @@
 </data>
  </layer>
  <objectgroup id="2" name="Object Layer 1">
-  <object id="3" x="225" y="1179" width="126" height="18">
+  <object id="3" x="219" y="1196" width="138" height="1">
    <properties>
     <property name="startingline" type="class" propertytype="cargame::tilemap::TriggerZone">
      <properties>
