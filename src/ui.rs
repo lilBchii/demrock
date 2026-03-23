@@ -4,7 +4,14 @@ use bevy::{input_focus::InputFocus, math::CompassOctant, prelude::*};
 use bevy_enhanced_input::prelude::*;
 use bevy_ui::auto_directional_navigation::{AutoDirectionalNavigation, AutoDirectionalNavigator};
 
+pub mod font;
+pub mod in_game;
+pub mod menu;
+
 pub const MENU_BUTTON_SIZE: (f32, f32) = (400.0, 80.0);
+
+pub(crate) const H1_SIZE: f32 = 80.0;
+pub(crate) const H2_SIZE: f32 = 60.0;
 
 const SLICER: TextureSlicer = TextureSlicer {
     border: BorderRect::all(9.0),
@@ -30,6 +37,10 @@ impl NavInteraction {
         matches!(self, NavInteraction::None)
     }
 }
+
+#[derive(Component)]
+#[component(immutable, storage = "SparseSet")]
+pub struct RedrawRequested;
 
 // Updates the NavInteraction components of the NavButton entities
 pub fn nav_interaction(
@@ -114,6 +125,11 @@ pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
                     Cardinal::arrows(),
                     Cardinal::dpad()
                 ))
+            ),
+            (
+                Action::<Back>::new(),
+                Down::new(0.9),
+                bindings![KeyCode::Backspace, KeyCode::KeyB, GamepadButton::East]
             )
         ]),
     )
@@ -182,3 +198,7 @@ pub struct NavigateUI;
 #[derive(InputAction)]
 #[action_output(bool)]
 pub struct ClickUI;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+pub struct Back;

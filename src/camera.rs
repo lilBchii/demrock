@@ -2,7 +2,7 @@ use avian2d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::TiledParallaxCamera;
 
-use crate::{car::Car, common::CAMERA_SCALE};
+use crate::{car::Car, common::CAMERA_SCALE, states::GameState};
 
 pub struct CameraPlugin;
 
@@ -10,7 +10,10 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::BLACK))
             .add_systems(Startup, setup_camera)
-            .add_systems(PostUpdate, (camera_follows_player, camera_zoom_on_player));
+            .add_systems(
+                PostUpdate,
+                (camera_follows_player, camera_zoom_on_player).run_if(in_state(GameState::Playing)),
+            );
     }
 }
 

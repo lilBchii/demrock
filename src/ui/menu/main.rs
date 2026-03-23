@@ -3,8 +3,9 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
 use crate::{
-    common::{AppState, GAME_NAME},
-    font::FontAssets,
+    common::GAME_NAME,
+    states::{GameState, Menu},
+    ui::font::FontAssets,
     ui::{header, nav_button, navigate, ui_root, ClickUI, NavButton},
 };
 
@@ -26,7 +27,7 @@ pub fn spawn_main_menu(
     let border_image = asset_server.load("button.png");
 
     commands
-        .spawn((ui_root("main menu"), DespawnOnExit(AppState::StartMenu)))
+        .spawn((ui_root("main menu"), DespawnOnExit(Menu::Main)))
         .observe(navigate)
         .observe(update_state)
         .with_children(|parent| {
@@ -93,19 +94,27 @@ pub fn update_state(
     _click: On<Complete<ClickUI>>,
     input_focus: Res<InputFocus>,
     action: Query<&MenuAction, With<NavButton>>,
-    mut next_state: ResMut<NextState<AppState>>,
+    mut next_menu: ResMut<NextState<Menu>>,
+    mut next_state: ResMut<NextState<GameState>>,
     mut app_exit: MessageWriter<AppExit>,
 ) {
     if let Some(input_focus) = input_focus.0 {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Play => {
-                    next_state.set(AppState::Playing);
+                    // TODO: set menu to PlayerMenu and remove GameState set
+                    next_state.set(GameState::Playing);
+                    next_menu.set(Menu::None);
+                }
+                MenuAction::Settings => {
+                    next_menu.set(Menu::Settings);
+                }
+                MenuAction::Credits => {
+                    next_menu.set(Menu::Credits);
                 }
                 MenuAction::Quit => {
                     app_exit.write(AppExit::Success);
                 }
-                _ => {}
             };
         }
     }

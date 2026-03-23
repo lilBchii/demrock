@@ -1,14 +1,14 @@
 use avian2d::prelude::*;
-use bevy::prelude::*;
+use bevy::{pbr::PhaseBuildIndirectParametersBindGroups, prelude::*};
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
     animation::{compute_atlas_index, custom_layout, AnimationIndices, AnimationTimer},
     common::{
-        AppState, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
-        CAR_ROTATION, CAR_SPRITE_SIZE,
+        CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION, CAR_ROTATION,
+        CAR_SPRITE_SIZE,
     },
-    gameplay::PlayingState,
+    states::{GameState, Menu, PlayingState},
 };
 
 // ---- Plugin ---- //
@@ -22,8 +22,10 @@ impl Plugin for CarPlugin {
             (deccelerate, animate_car, animate_falling).run_if(in_state(PlayingState::Racing)),
         )
         .add_systems(OnEnter(PlayingState::Racing), enable_input)
+        .add_systems(OnEnter(GameState::Playing), spawn_car)
+        .add_systems(OnExit(Menu::None), disable_input)
         .add_input_context::<Car>()
-        .add_observer(spawn_car)
+        .add_observer(setup_car)
         .add_observer(accelerate)
         .add_observer(rotate)
         .add_observer(input_cancel_acceleration)
@@ -56,8 +58,12 @@ pub enum State {
     Neutral,
 }
 
+// TODO: change to sparseset component instead of bool
 #[derive(Component)]
 pub struct IsGrounded(pub bool);
+
+#[derive(Component)]
+pub struct HasFinished(pub bool);
 
 #[derive(Component)]
 struct FallingTimer(Timer);
@@ -74,22 +80,56 @@ pub struct Progression {
 #[derive(Component)]
 pub struct LapsTime(pub Vec<f32>);
 
+impl ToString for LapsTime {
+    fn to_string(&self) -> String {
+        let mut string_buffer = String::new();
+        for (lap, time) in self
+            .0
+            .iter()
+            .scan(0.0, |state, time| {
+                let lap_time = time - *state;
+                *state = *time;
+                Some(lap_time)
+            })
+            .skip(1)
+            .enumerate()
+        {
+            string_buffer.push_str(&format!("lap {}: {:.3}\n", lap + 1, time));
+        }
+        string_buffer
+    }
+}
+
 #[derive(Bundle)]
-struct CarBundle {
-    marker: Car,
-    config: Config,
-    // inputs
-    rotation_factor: RotationFactor,
-    state: State,
-    // physics
+struct PhysicsBundle {
     transform: Transform,
+    rotation_factor: RotationFactor,
+    linear_velocity: LinearVelocity,
     collider: Collider,
     body: RigidBody,
+    colliding_entities: CollidingEntities,
+    interpolation: TransformInterpolation,
     is_grounded: IsGrounded,
-    // appearence
+}
+
+#[derive(Bundle)]
+struct StateBundle {
+    has_finished: HasFinished,
+    state: State,
+}
+
+#[derive(Bundle)]
+struct AppearanceBundle {
+    visibility: Visibility,
     sprite: Sprite,
     animation_indices: AnimationIndices<CAR_NUM_ANIMATION>,
     animation_timer: AnimationTimer,
+}
+
+#[derive(Bundle)]
+struct ScoreBundle {
+    lap_times: LapsTime,
+    progression: Progression,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
@@ -100,9 +140,7 @@ pub struct CarSpawnPoint;
 // ---- Sytems ---- //
 
 fn spawn_car(
-    add_car_spawn: On<Add, CarSpawnPoint>,
     mut commands: Commands,
-    car_spawn_query: Query<&Transform, With<CarSpawnPoint>>,
     asset_server: Res<AssetServer>,
     mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
@@ -112,27 +150,19 @@ fn spawn_car(
         CAR_ANIMATION_INDICES,
     ));
 
-    // TODO: manage error
-    let spawn_pos = *car_spawn_query.get(add_car_spawn.event().entity).unwrap();
-
     commands.spawn((
-        CarBundle {
-            marker: Car,
-            config: Config {
-                rotation_speed: CAR_ROTATION,
-                acceleration: CAR_ACCELERATION,
-                brake: CAR_BRAKE,
-            },
-            rotation_factor: RotationFactor(0.0),
+        Car,
+        Config {
+            rotation_speed: CAR_ROTATION,
+            acceleration: CAR_ACCELERATION,
+            brake: CAR_BRAKE,
+        },
+        StateBundle {
+            has_finished: HasFinished(false),
             state: State::Neutral,
-            transform: Transform::from_translation(Vec3::new(
-                spawn_pos.translation.x,
-                spawn_pos.translation.y,
-                1.0,
-            )),
-            collider: Collider::rectangle(2.0, 5.0),
-            body: RigidBody::Kinematic,
-            is_grounded: IsGrounded(true),
+        },
+        AppearanceBundle {
+            visibility: Visibility::Hidden,
             sprite: Sprite::from_atlas_image(
                 asset_server.load("racer.png"),
                 TextureAtlas {
@@ -146,20 +176,25 @@ fn spawn_car(
             },
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
-        TransformInterpolation,
-        FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
-        Progression {
-            last_checkpoint: 0,
-            current_turn: 0,
+        ScoreBundle {
+            lap_times: LapsTime(Vec::new()),
+            progression: Progression {
+                last_checkpoint: 0,
+                current_turn: 0,
+            },
         },
-        LapsTime(Vec::new()),
-        DespawnOnExit(AppState::Playing),
-    ));
-}
-
-fn enable_input(mut commands: Commands, car_query: Query<Entity, With<Car>>) {
-    car_query.iter().for_each(|e| {
-        commands.entity(e).insert(actions!(Car[
+        PhysicsBundle {
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+            rotation_factor: RotationFactor(0.0),
+            linear_velocity: LinearVelocity::ZERO,
+            collider: Collider::rectangle(2.0, 5.0),
+            body: RigidBody::Kinematic,
+            colliding_entities: CollidingEntities::default(),
+            interpolation: TransformInterpolation,
+            is_grounded: IsGrounded(true),
+        },
+        FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
+        actions!(Car[
             (
                 Action::<Accelerate>::new(),
                 SmoothNudge::default(),
@@ -182,8 +217,100 @@ fn enable_input(mut commands: Commands, car_query: Query<Entity, With<Car>>) {
                     Axial::left_stick(),
                 )),
             ),
-        ]));
-    });
+        ]),
+        ContextActivity::<Car>::INACTIVE,
+        DespawnOnExit(GameState::Playing),
+    ));
+}
+
+// This spawns physics components of the car when a spawn point has spawned.
+// It allows to reset the physics of the car when changing map.
+fn setup_car(
+    add_car_spawn: On<Add, CarSpawnPoint>,
+    mut commands: Commands,
+    spawn_point_query: Query<&Transform, (With<CarSpawnPoint>, Without<Car>)>,
+    car_query: Query<
+        (
+            Entity,
+            &mut Transform,
+            &mut RotationFactor,
+            &mut LinearVelocity,
+            &mut IsGrounded,
+            &mut State,
+            &mut Progression,
+            &mut LapsTime,
+            &mut Visibility,
+        ),
+        With<Car>,
+    >,
+) {
+    // TODO: consider multiple spawn point with multiplayer for instance
+    let Ok(spawn_pos) = spawn_point_query.get(add_car_spawn.event().entity) else {
+        return;
+    };
+    for (
+        entity,
+        mut transform,
+        mut rotation_factor,
+        mut linear_velocity,
+        mut is_grounded,
+        mut state,
+        mut progression,
+        mut laps_time,
+        mut visibility,
+    ) in car_query
+    {
+        *transform = Transform::from_translation(Vec3::new(
+            spawn_pos.translation.x,
+            spawn_pos.translation.y,
+            1.0,
+        ));
+        *rotation_factor = RotationFactor(0.0);
+        *linear_velocity = LinearVelocity::ZERO;
+        *is_grounded = IsGrounded(true);
+        *state = State::Neutral;
+        *progression = Progression {
+            last_checkpoint: 0,
+            current_turn: 0,
+        };
+        *laps_time = LapsTime(Vec::new());
+        *visibility = Visibility::Visible;
+        commands
+            .entity(entity)
+            .remove::<(ColliderDisabled, RigidBodyDisabled)>();
+    }
+}
+
+fn enable_input(mut commands: Commands, player_query: Query<Entity, With<Car>>) {
+    for entity in player_query {
+        commands
+            .entity(entity)
+            .insert(ContextActivity::<Car>::ACTIVE);
+    }
+}
+
+fn disable_input(mut commands: Commands, player_query: Query<Entity, With<Car>>) {
+    for entity in player_query {
+        commands
+            .entity(entity)
+            .insert(ContextActivity::<Car>::INACTIVE);
+    }
+}
+
+fn hide_car(car_query: Query<&mut Visibility, With<Car>>) {
+    for mut visibility in car_query {
+        if matches!(*visibility, Visibility::Visible) {
+            *visibility = Visibility::Hidden;
+        }
+    }
+}
+
+fn show_car(car_query: Query<&mut Visibility, With<Car>>) {
+    for mut visibility in car_query {
+        if matches!(*visibility, Visibility::Hidden) {
+            *visibility = Visibility::Visible;
+        }
+    }
 }
 
 fn deccelerate(
@@ -251,14 +378,17 @@ fn animate_falling(
         ),
         With<Car>,
     >,
-    mut next_state: ResMut<NextState<AppState>>,
+    mut next_menu: ResMut<NextState<Menu>>,
+    mut next_state: ResMut<NextState<PlayingState>>,
     time: Res<Time>,
 ) {
     for (mut transform, mut velocity, mut angular_velocity, mut timer, state) in &mut car_query {
         if matches!(state, State::Falling) {
             timer.0.tick(time.delta());
             if timer.0.is_finished() {
-                next_state.set(AppState::GameOver);
+                next_state.set(PlayingState::End);
+                // TODO: change this to RaceOver
+                next_menu.set(Menu::GameOver);
             } else {
                 transform.scale = (transform.scale - 0.25 * time.delta_secs()).max(Vec3::ZERO);
                 transform.rotate_z(1.5 * time.delta_secs());

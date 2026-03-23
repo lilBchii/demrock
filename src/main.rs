@@ -5,24 +5,24 @@ use bevy_ecs_tiled::{
     tiled::TiledPlugin,
 };
 use bevy_enhanced_input::EnhancedInputPlugin;
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 use camera::*;
 use tilemap::*;
 
 use crate::{
     car::CarPlugin,
-    common::{AppState, MultiplayerMode, GAME_NAME},
-    font::FontPlugin,
+    common::{MultiplayerMode, GAME_NAME},
     gameplay::GameplayPlugin,
-    menu::MenuPlugin,
+    states::GameState,
+    ui::{font::FontPlugin, in_game::InGameUiPlugin, menu::MenuPlugin},
 };
 
 mod animation;
 mod camera;
 mod car;
 mod common;
-mod font;
 mod gameplay;
-mod menu;
+mod states;
 mod tilemap;
 mod ui;
 
@@ -49,6 +49,8 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
+        .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
+        .insert_state(GameState::Menu)
         .add_plugins((
             FontPlugin,
             CameraPlugin,
@@ -56,8 +58,8 @@ fn main() {
             CarPlugin,
             LevelPlugin,
             GameplayPlugin,
+            InGameUiPlugin,
         ))
-        .insert_state(AppState::StartMenu)
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)
         .run();

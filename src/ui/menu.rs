@@ -5,35 +5,30 @@ use bevy::{
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
-    common::AppState,
+    states::Menu,
     ui::{button_style, nav_interaction, UI},
 };
 
+pub mod credits;
 pub mod gameover;
+pub mod level_selection;
 pub mod main;
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, SubStates)]
-#[source(AppState = AppState::StartMenu)]
-#[states(scoped_entities)]
-pub enum Menu {
-    #[default]
-    Main,
-    Settings,
-    Credits,
-}
+pub mod settings;
 
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_sub_state::<Menu>()
+        app.insert_state(Menu::Main)
             .add_input_context::<UI>()
             .add_plugins((InputDispatchPlugin, DirectionalNavigationPlugin))
             .add_systems(
                 Update,
-                (button_style, nav_interaction).run_if(not(in_state(AppState::Playing))),
+                (button_style, nav_interaction).run_if(not(in_state(Menu::None))),
             )
             .add_systems(OnEnter(Menu::Main), main::spawn_main_menu)
-            .add_systems(OnEnter(AppState::GameOver), gameover::spawn_main_menu);
+            .add_systems(OnEnter(Menu::GameOver), gameover::spawn_gameover_menu)
+            .add_systems(OnEnter(Menu::Settings), settings::spawn_settings_menu)
+            .add_systems(OnEnter(Menu::Credits), credits::spawn_credits_menu);
     }
 }

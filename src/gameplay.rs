@@ -1,8 +1,6 @@
 use bevy::app::Update;
 use bevy::asset::{AssetServer, Assets};
 use bevy::ecs::component::Component;
-use bevy::ecs::entity::Entity;
-use bevy::ecs::event::EntityEvent;
 use bevy::ecs::lifecycle::Add;
 use bevy::ecs::observer::On;
 use bevy::ecs::query::With;
@@ -11,43 +9,38 @@ use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::{Commands, Query, Res, ResMut};
 use bevy::image::{TextureAtlas, TextureAtlasLayout};
 use bevy::math::{UVec2, Vec3};
-use bevy::prelude::{Plugin, StateSet, Transform};
+use bevy::prelude::{Plugin, Transform};
 use bevy::sprite::Sprite;
 use bevy::state::app::AppExtStates;
 use bevy::state::condition::in_state;
-use bevy::state::state::{NextState, SubStates};
+use bevy::state::state::NextState;
 use bevy::state::state_scoped::DespawnOnExit;
 use bevy::time::{Stopwatch, Time, Timer, TimerMode};
-use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent};
+use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent, TiledMap};
 
 use crate::animation::AnimationTimer;
-use crate::car::CarSpawnPoint;
-use crate::common::AppState;
+use crate::car::{Car, CarSpawnPoint, HasFinished, IsGrounded, Progression};
+use crate::states::{Menu, Pause, PlayingState};
+use crate::tilemap::NumberOfLaps;
 
 pub struct GameplayPlugin;
 
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_sub_state::<PlayingState>()
+            .insert_state(Pause(false))
             .insert_resource(TimeSinceStart(Stopwatch::new()))
             .add_observer(spawn_countdown)
             .add_observer(reset_stopwatch)
+            // .add_observer(game_over)
             .add_systems(
                 Update,
                 (
                     play_countdown.run_if(in_state(PlayingState::Countdown)),
-                    update_stopwatch.run_if(in_state(PlayingState::Racing)),
+                    (update_stopwatch, game_over).run_if(in_state(PlayingState::Racing)),
                 ),
             );
     }
-}
-
-#[derive(Clone, PartialEq, Eq, Default, Hash, Debug, SubStates)]
-#[source(AppState = AppState::Playing)]
-pub enum PlayingState {
-    #[default]
-    Countdown,
-    Racing,
 }
 
 #[derive(Component)]
@@ -130,7 +123,48 @@ fn reset_stopwatch(_: On<TiledEvent<MapCreated>>, mut stopwatch_res: ResMut<Time
     stopwatch_res.0.reset();
 }
 
-#[derive(EntityEvent)]
-pub struct CrossTheLine {
-    pub entity: Entity,
+// #[derive(EntityEvent)]
+// pub struct CrossTheLine {
+//     pub entity: Entity,
+// }
+
+// fn game_over_evt(
+//     car_query: Query<(&Progression, &IsGrounded, &HasFinished), With<Car>>,
+//     level_query: Query<&NumberOfLaps, With<TiledMap>>,
+//     mut next_state: ResMut<NextState<PlayingState>>,
+//     mut next_menu: ResMut<NextState<Menu>>,
+// ) {
+//     for progression in &car_query {
+//         if level_query
+//             .single()
+//             .is_ok_and(|n_laps| progression.current_turn == n_laps.0 as u8 + 1)
+//         {
+//             // TODO: check if all the players have finished
+//             next_state.set(PlayingState::End);
+//             next_menu.set(Menu::GameOver);
+//         }
+//     }
+// }
+
+fn game_over(
+    car_query: Query<(&Progression, &IsGrounded, &HasFinished), With<Car>>,
+    level_query: Query<&NumberOfLaps, With<TiledMap>>,
+    mut next_state: ResMut<NextState<PlayingState>>,
+    mut next_menu: ResMut<NextState<Menu>>,
+) {
+    // TODO: check if all the players have finished
+    for (progression, is_grounded, has_finished) in &car_query {
+        // player ended all laps
+        if level_query
+            .single()
+            .is_ok_and(|n_laps| progression.current_turn == n_laps.0 as u8 + 1) 
+            // player has fallen
+            || !is_grounded.0
+            // player has finished
+            || has_finished.0
+        {
+            next_state.set(PlayingState::End);
+            next_menu.set(Menu::GameOver);
+        }
+    }
 }
