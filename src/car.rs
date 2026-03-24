@@ -1,5 +1,5 @@
 use avian2d::prelude::*;
-use bevy::{pbr::PhaseBuildIndirectParametersBindGroups, prelude::*};
+use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
@@ -60,7 +60,8 @@ pub enum State {
 
 // TODO: change to sparseset component instead of bool
 #[derive(Component)]
-pub struct IsGrounded(pub bool);
+#[component(storage = "SparseSet")]
+pub struct Grounded;
 
 #[derive(Component)]
 pub struct HasFinished(pub bool);
@@ -109,7 +110,6 @@ struct PhysicsBundle {
     body: RigidBody,
     colliding_entities: CollidingEntities,
     interpolation: TransformInterpolation,
-    is_grounded: IsGrounded,
 }
 
 #[derive(Bundle)]
@@ -191,7 +191,6 @@ fn spawn_car(
             body: RigidBody::Kinematic,
             colliding_entities: CollidingEntities::default(),
             interpolation: TransformInterpolation,
-            is_grounded: IsGrounded(true),
         },
         FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
         actions!(Car[
@@ -235,7 +234,6 @@ fn setup_car(
             &mut Transform,
             &mut RotationFactor,
             &mut LinearVelocity,
-            &mut IsGrounded,
             &mut State,
             &mut Progression,
             &mut LapsTime,
@@ -253,7 +251,6 @@ fn setup_car(
         mut transform,
         mut rotation_factor,
         mut linear_velocity,
-        mut is_grounded,
         mut state,
         mut progression,
         mut laps_time,
@@ -267,7 +264,6 @@ fn setup_car(
         ));
         *rotation_factor = RotationFactor(0.0);
         *linear_velocity = LinearVelocity::ZERO;
-        *is_grounded = IsGrounded(true);
         *state = State::Neutral;
         *progression = Progression {
             last_checkpoint: 0,
@@ -277,7 +273,8 @@ fn setup_car(
         *visibility = Visibility::Visible;
         commands
             .entity(entity)
-            .remove::<(ColliderDisabled, RigidBodyDisabled)>();
+            .remove::<(ColliderDisabled, RigidBodyDisabled)>()
+            .insert(Grounded);
     }
 }
 
@@ -314,13 +311,11 @@ fn show_car(car_query: Query<&mut Visibility, With<Car>>) {
 }
 
 fn deccelerate(
-    mut query: Query<(&IsGrounded, &mut LinearVelocity, &mut AngularVelocity), With<Car>>,
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity), (With<Car>, With<Grounded>)>,
 ) {
-    for (is_grounded, mut velocity, mut rotation) in query.iter_mut() {
-        if is_grounded.0 {
-            rotation.0 *= 0.88;
-            velocity.0 *= 0.98;
-        }
+    for (mut velocity, mut rotation) in query.iter_mut() {
+        rotation.0 *= 0.88;
+        velocity.0 *= 0.98;
     }
 }
 
@@ -416,82 +411,56 @@ struct Rotate;
 fn accelerate(
     acceleration: On<Fire<Accelerate>>,
     mut query: Query<
-        (
-            &mut LinearVelocity,
-            &Transform,
-            &IsGrounded,
-            &mut State,
-            &Config,
-        ),
-        With<Car>,
+        (&mut LinearVelocity, &Transform, &mut State, &Config),
+        (With<Car>, With<Grounded>),
     >,
     time: Res<Time>,
 ) {
-    if let Ok((mut velocity, transform, is_grounded, mut state, config)) =
-        query.get_mut(acceleration.context)
-    {
-        if is_grounded.0 {
-            let dir = (transform.rotation * Vec3::Y).truncate();
-            velocity.0 +=
-                Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
-            *state = State::Accelerating;
-        }
+    if let Ok((mut velocity, transform, mut state, config)) = query.get_mut(acceleration.context) {
+        let dir = (transform.rotation * Vec3::Y).truncate();
+        velocity.0 +=
+            Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
+        *state = State::Accelerating;
     }
 }
 
 fn rotate(
     rotation: On<Fire<Rotate>>,
     mut q_rotation: Query<
-        (
-            &mut RotationFactor,
-            &mut AngularVelocity,
-            &IsGrounded,
-            &Config,
-        ),
-        With<Car>,
+        (&mut RotationFactor, &mut AngularVelocity, &Config),
+        (With<Car>, With<Grounded>),
     >,
     time: Res<Time>,
 ) {
-    if let Ok((mut rotation_factor, mut angular_velocity, is_grounded, config)) =
+    if let Ok((mut rotation_factor, mut angular_velocity, config)) =
         q_rotation.get_mut(rotation.context)
     {
-        if is_grounded.0 {
-            angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
-            rotation_factor.0 = -rotation.value;
-        }
+        angular_velocity.0 -= rotation.value * config.rotation_speed * time.delta_secs();
+        rotation_factor.0 = -rotation.value;
     }
 }
 
 fn input_brake(
     brake: On<Fire<Brake>>,
-    mut query: Query<(&mut LinearVelocity, &IsGrounded, &mut State, &Config), With<Car>>,
+    mut query: Query<(&mut LinearVelocity, &mut State, &Config), (With<Car>, With<Grounded>)>,
 ) {
-    if let Ok((mut velocity, is_grounded, mut state, config)) = query.get_mut(brake.context) {
-        if is_grounded.0 {
-            velocity.0 *= 1.0 - brake.value * config.brake;
-            *state = State::Braking;
-        }
+    if let Ok((mut velocity, mut state, config)) = query.get_mut(brake.context) {
+        velocity.0 *= 1.0 - brake.value * config.brake;
+        *state = State::Braking;
     }
 }
 
 fn input_cancel_acceleration(
     acceleration: On<Complete<Accelerate>>,
-    mut query: Query<(&IsGrounded, &mut State), With<Car>>,
+    mut query: Query<&mut State, With<Car>>,
 ) {
-    if let Ok((is_grounded, mut state)) = query.get_mut(acceleration.context) {
-        if is_grounded.0 {
-            *state = State::Neutral;
-        }
+    if let Ok(mut state) = query.get_mut(acceleration.context) {
+        *state = State::Neutral;
     }
 }
 
-fn input_cancel_brake(
-    brake: On<Complete<Brake>>,
-    mut query: Query<(&IsGrounded, &mut State), With<Car>>,
-) {
-    if let Ok((is_grounded, mut state)) = query.get_mut(brake.context) {
-        if is_grounded.0 {
-            *state = State::Neutral;
-        }
+fn input_cancel_brake(brake: On<Complete<Brake>>, mut query: Query<&mut State, With<Car>>) {
+    if let Ok(mut state) = query.get_mut(brake.context) {
+        *state = State::Neutral;
     }
 }

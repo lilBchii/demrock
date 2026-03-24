@@ -2,7 +2,7 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
-use crate::car::{Car, IsGrounded, LapsTime, Progression, State};
+use crate::car::{Car, Grounded, LapsTime, Progression, State};
 use crate::gameplay::TimeSinceStart;
 use crate::states::PlayingState;
 use crate::ui::in_game::{setup_gameplay_ui, TotalTimeDisplay};
@@ -106,17 +106,17 @@ fn insert_road_colliders(
 
 fn detect_car_out(
     mut commands: Commands,
-    car_query: Query<(Entity, &CollidingEntities, &mut IsGrounded, &mut State), With<Car>>,
+    car_query: Query<(Entity, &CollidingEntities, &mut State), (With<Car>, With<Grounded>)>,
     road_query: Query<Entity, (With<Road>, Without<TriggerZone>)>,
 ) {
-    for (entity, colliding_entities, mut is_grounded, mut state) in car_query {
+    for (entity, colliding_entities, mut state) in car_query {
         for road_entity in road_query {
             if colliding_entities.contains(&road_entity) {
-                is_grounded.0 = false;
                 *state = State::Falling;
                 commands
                     .entity(entity)
-                    .insert((ColliderDisabled, RigidBodyDisabled));
+                    .insert((ColliderDisabled, RigidBodyDisabled))
+                    .remove::<Grounded>();
             }
         }
     }

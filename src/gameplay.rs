@@ -3,7 +3,7 @@ use bevy::asset::{AssetServer, Assets};
 use bevy::ecs::component::Component;
 use bevy::ecs::lifecycle::Add;
 use bevy::ecs::observer::On;
-use bevy::ecs::query::With;
+use bevy::ecs::query::{Has, With};
 use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::{Commands, Query, Res, ResMut};
@@ -19,7 +19,7 @@ use bevy::time::{Stopwatch, Time, Timer, TimerMode};
 use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent, TiledMap};
 
 use crate::animation::AnimationTimer;
-use crate::car::{Car, CarSpawnPoint, HasFinished, IsGrounded, Progression};
+use crate::car::{Car, CarSpawnPoint, HasFinished, Grounded, Progression};
 use crate::states::{Menu, Pause, PlayingState};
 use crate::tilemap::NumberOfLaps;
 
@@ -147,7 +147,7 @@ fn reset_stopwatch(_: On<TiledEvent<MapCreated>>, mut stopwatch_res: ResMut<Time
 // }
 
 fn game_over(
-    car_query: Query<(&Progression, &IsGrounded, &HasFinished), With<Car>>,
+    car_query: Query<(&Progression, Has<Grounded>, &HasFinished), With<Car>>,
     level_query: Query<&NumberOfLaps, With<TiledMap>>,
     mut next_state: ResMut<NextState<PlayingState>>,
     mut next_menu: ResMut<NextState<Menu>>,
@@ -159,7 +159,7 @@ fn game_over(
             .single()
             .is_ok_and(|n_laps| progression.current_turn == n_laps.0 as u8 + 1) 
             // player has fallen
-            || !is_grounded.0
+            || !is_grounded
             // player has finished
             || has_finished.0
         {
