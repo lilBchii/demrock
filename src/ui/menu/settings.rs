@@ -13,8 +13,7 @@ use bevy_ui::{widget::Text, Val};
 
 use crate::{
     states::Menu,
-    ui::font::FontAssets,
-    ui::{header, navigate, ui_root, Back},
+    ui::{font::FontAssets, header, navigate, ui_root, Back, H2_SIZE},
 };
 
 pub fn spawn_settings_menu(
@@ -31,7 +30,7 @@ pub fn spawn_settings_menu(
             parent.spawn(header(
                 "Settings",
                 Val::Percent(15.0),
-                65.0,
+                H2_SIZE,
                 fonts.default.clone(),
             ));
             // TODO: actual settings ui

@@ -96,6 +96,8 @@ pub fn button_style(
     }
 }
 
+// --------- Helper Functions ---------- //
+
 pub fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
     (
         Name::new(name),
