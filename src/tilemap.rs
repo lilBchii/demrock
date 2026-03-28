@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
 use crate::car::{Car, Grounded, LapsTime, Progression, State};
+use crate::gamemodes::SelectedLevel;
 use crate::gameplay::TimeSinceStart;
 use crate::states::PlayingState;
 use crate::ui::in_game::{setup_gameplay_ui, TotalTimeDisplay};
@@ -15,7 +16,7 @@ impl Plugin for LevelPlugin {
         app.register_type::<TriggerZone>()
             .add_systems(
                 OnEnter(PlayingState::Countdown),
-                (spawn_playground_level, setup_gameplay_ui).chain(),
+                (spawn_level, setup_gameplay_ui).chain(),
             )
             .add_systems(
                 Update,
@@ -122,8 +123,46 @@ fn detect_car_out(
     }
 }
 
+#[derive(Clone)]
+pub enum Level {
+    Playground,
+    Demcity,
+    Galabusa,
+}
+
+impl Level {
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Playground => "Playground",
+            Self::Demcity => "Demcity",
+            Self::Galabusa => "Galabusa",
+        }
+    }
+
+    pub fn spawn_level(&self, commands: Commands, asset_server: Res<AssetServer>) {
+        match self {
+            Self::Playground => spawn_playground_level(commands, asset_server),
+            Self::Demcity => spawn_demcity_level(commands, asset_server),
+            Self::Galabusa => spawn_galabusa_level(commands, asset_server),
+        }
+    }
+}
+
+pub static ALL_LEVELS: [Level; 3] = [Level::Playground, Level::Demcity, Level::Galabusa];
+
+// Main level spawner system
+fn spawn_level(
+    commands: Commands,
+    level_query: Query<&SelectedLevel>,
+    asset_server: Res<AssetServer>,
+) {
+    if let Ok(level) = level_query.single() {
+        level.0.spawn_level(commands, asset_server);
+    }
+}
+
 // Spawn Demcity level
-pub fn spawn_demcity_level(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_demcity_level(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             TiledMap(asset_server.load("levels/demcity/map.tmx")),

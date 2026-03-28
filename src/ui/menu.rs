@@ -29,6 +29,10 @@ impl Plugin for MenuPlugin {
             .add_systems(OnEnter(Menu::Main), main::spawn_main_menu)
             .add_systems(OnEnter(Menu::GameOver), gameover::spawn_gameover_menu)
             .add_systems(OnEnter(Menu::Settings), settings::spawn_settings_menu)
-            .add_systems(OnEnter(Menu::Credits), credits::spawn_credits_menu);
+            .add_systems(OnEnter(Menu::Credits), credits::spawn_credits_menu)
+            .add_systems(
+                OnEnter(Menu::LevelSelection),
+                level_selection::spawn_level_selection_menu,
+            );
     }
 }

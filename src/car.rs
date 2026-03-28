@@ -58,7 +58,6 @@ pub enum State {
     Neutral,
 }
 
-// TODO: change to sparseset component instead of bool
 #[derive(Component)]
 #[component(storage = "SparseSet")]
 pub struct Grounded;

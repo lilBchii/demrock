@@ -21,6 +21,7 @@ mod animation;
 mod camera;
 mod car;
 mod common;
+mod gamemodes;
 mod gameplay;
 mod states;
 mod tilemap;
@@ -49,7 +50,7 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
-        .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
+        // .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
         .insert_state(GameState::Menu)
         .add_plugins((
             FontPlugin,

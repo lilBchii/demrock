@@ -95,16 +95,15 @@ pub fn update_state(
     input_focus: Res<InputFocus>,
     action: Query<&MenuAction, With<NavButton>>,
     mut next_menu: ResMut<NextState<Menu>>,
-    mut next_state: ResMut<NextState<GameState>>,
+    // mut next_state: ResMut<NextState<GameState>>,
     mut app_exit: MessageWriter<AppExit>,
 ) {
     if let Some(input_focus) = input_focus.0 {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Play => {
-                    // TODO: set menu to PlayerMenu and remove GameState set
-                    next_state.set(GameState::Playing);
-                    next_menu.set(Menu::None);
+                    // TODO: set menu to PlayerMenu
+                    next_menu.set(Menu::LevelSelection);
                 }
                 MenuAction::Settings => {
                     next_menu.set(Menu::Settings);
