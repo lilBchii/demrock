@@ -1,25 +1,25 @@
+use bevy::app::Plugin;
 use bevy::app::Update;
 use bevy::ecs::schedule::IntoScheduleConfigs;
+use bevy::ecs::{
+    children,
+    component::Component,
+    name::Name,
+    query::With,
+    system::{Commands, Query, Res},
+};
 use bevy::prelude::{
     default, AlignItems, FlexDirection, JustifyContent, Node, PositionType, Text, UiRect, Val,
 };
 use bevy::state::condition::in_state;
 use bevy::state::state_scoped::DespawnOnExit;
+
 use bevy::text::TextFont;
-use bevy::{
-    app::Plugin,
-    ecs::{
-        children,
-        component::Component,
-        name::Name,
-        query::With,
-        system::{Commands, Query, Res},
-    },
-};
 use bevy_ui::px;
 
+use crate::car::GameProgression;
 use crate::{
-    car::{Car, LapsTime, Progression},
+    car::{Car, RaceProgression},
     gameplay::TimeSinceStart,
     states::PlayingState,
     tilemap::NumberOfLaps,
@@ -92,26 +92,26 @@ pub fn setup_gameplay_ui(
 }
 
 fn update_lap_display(
-    progression_query: Query<&Progression, With<Car>>,
+    progression_query: Query<&RaceProgression, With<Car>>,
     n_lap_query: Query<&NumberOfLaps>,
     mut lap_query: Query<&mut Text, (With<CurrentTurnDisplay>, With<RedrawRequested>)>,
 ) {
     if let Ok(progression) = progression_query.single() {
         if let Ok(mut text) = lap_query.single_mut() {
             if let Ok(number_of_laps) = n_lap_query.single() {
-                *text = format!("lap: {}/{}", progression.current_turn, number_of_laps.0).into();
+                *text = format!("lap: {}/{}", progression.current_lap, number_of_laps.0).into();
             }
         }
     }
 }
 
 fn update_time_by_lap_display(
-    progression_query: Query<&LapsTime, With<Car>>,
+    progression_query: Query<&GameProgression, With<Car>>,
     mut lap_time_query: Query<&mut Text, (With<LapTimeDisplay>, With<RedrawRequested>)>,
 ) {
-    if let Ok(laps_time) = progression_query.single() {
+    if let Ok(progression) = progression_query.single() {
         if let Ok(mut text) = lap_time_query.single_mut() {
-            *text = laps_time.to_string().into();
+            *text = progression.current_race_times().to_string().into();
         }
     }
 }

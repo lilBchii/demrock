@@ -6,7 +6,7 @@ use bevy::ecs::observer::On;
 use bevy::ecs::query::{Has, With};
 use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
-use bevy::ecs::system::{Commands, Query, Res, ResMut};
+use bevy::ecs::system::{Commands, Query, Res, ResMut, Single};
 use bevy::image::{TextureAtlas, TextureAtlasLayout};
 use bevy::math::{UVec2, Vec3};
 use bevy::prelude::{Plugin, Transform};
@@ -19,7 +19,8 @@ use bevy::time::{Stopwatch, Time, Timer, TimerMode};
 use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent, TiledMap};
 
 use crate::animation::AnimationTimer;
-use crate::car::{Car, CarSpawnPoint, HasFinished, Grounded, Progression};
+use crate::car::{Car, CarSpawnPoint, GameProgression, Grounded, LapsTime, RaceProgression};
+use crate::gamemodes::{ArcadeLevels, GameMode, SelectedLevel};
 use crate::states::{Menu, Pause, PlayingState};
 use crate::tilemap::NumberOfLaps;
 
@@ -123,46 +124,43 @@ fn reset_stopwatch(_: On<TiledEvent<MapCreated>>, mut stopwatch_res: ResMut<Time
     stopwatch_res.0.reset();
 }
 
-// #[derive(EntityEvent)]
-// pub struct CrossTheLine {
-//     pub entity: Entity,
-// }
-
-// fn game_over_evt(
-//     car_query: Query<(&Progression, &IsGrounded, &HasFinished), With<Car>>,
-//     level_query: Query<&NumberOfLaps, With<TiledMap>>,
-//     mut next_state: ResMut<NextState<PlayingState>>,
-//     mut next_menu: ResMut<NextState<Menu>>,
-// ) {
-//     for progression in &car_query {
-//         if level_query
-//             .single()
-//             .is_ok_and(|n_laps| progression.current_turn == n_laps.0 as u8 + 1)
-//         {
-//             // TODO: check if all the players have finished
-//             next_state.set(PlayingState::End);
-//             next_menu.set(Menu::GameOver);
-//         }
-//     }
-// }
-
 fn game_over(
-    car_query: Query<(&Progression, Has<Grounded>, &HasFinished), With<Car>>,
+    mut car_query: Query<(&RaceProgression, &mut GameProgression, Has<Grounded>), With<Car>>,
     level_query: Query<&NumberOfLaps, With<TiledMap>>,
+    game_mode_query: Single<&GameMode>,
+    mut level_serie: Single<&mut ArcadeLevels>,
+    mut selected_level: Single<&mut SelectedLevel>,
     mut next_state: ResMut<NextState<PlayingState>>,
     mut next_menu: ResMut<NextState<Menu>>,
 ) {
+    let Ok(n_laps) = level_query.single() else {
+        return;
+    };
     // TODO: check if all the players have finished
-    for (progression, is_grounded, has_finished) in &car_query {
-        // player ended all laps
-        if level_query
-            .single()
-            .is_ok_and(|n_laps| progression.current_turn == n_laps.0 as u8 + 1) 
+    for (progression, mut game_progression, is_grounded) in &mut car_query {
+        if progression.current_lap == n_laps.0 as u8 + 1 {
+            // player ended all laps of the race
+            level_serie.increment_index();
+            match *game_mode_query {
+                GameMode::Arcade => {
+                    game_progression.incr_n_race();
+                    if level_serie.is_finished() {
+                        next_state.set(PlayingState::End);
+                        next_menu.set(Menu::GameOver);
+                    } else {
+                        selected_level.0 = level_serie.get_current_level();
+                        game_progression.push_laps_times(LapsTime::new());
+                        next_state.set(PlayingState::End);
+                        next_menu.set(Menu::RaceOver);
+                    }
+                }
+                GameMode::Free => {
+                    next_state.set(PlayingState::End);
+                    next_menu.set(Menu::GameOver);
+                }
+            }
+        } else if !is_grounded {
             // player has fallen
-            || !is_grounded
-            // player has finished
-            || has_finished.0
-        {
             next_state.set(PlayingState::End);
             next_menu.set(Menu::GameOver);
         }

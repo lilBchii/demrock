@@ -4,7 +4,7 @@ use bevy::{
         component::Component,
         observer::On,
         query::With,
-        system::{Commands, Query, Res, ResMut},
+        system::{Commands, Query, Res, ResMut, Single},
     },
     input_focus::InputFocus,
     prelude::default,
@@ -17,7 +17,9 @@ use crate::{
     gamemodes::SelectedLevel,
     states::{GameState, Menu},
     tilemap::{Level, ALL_LEVELS},
-    ui::{font::FontAssets, header, nav_button, navigate, ui_root, Back, ClickUI, NavButton},
+    ui::{
+        font::FontAssets, header, nav_button, navigate, ui_root, Back, ClickUI, NavButton, H2_SIZE,
+    },
 };
 
 #[derive(Component)]
@@ -44,16 +46,16 @@ pub fn spawn_level_selection_menu(
         .with_children(|parent| {
             parent.spawn(header(
                 "Select Level",
-                Val::Percent(30.0),
-                80.0,
+                Val::Percent(15.0),
+                H2_SIZE,
                 fonts.default.clone(),
             ));
             parent
                 .spawn(Node {
                     width: percent(100),
-                    height: percent(70),
+                    height: percent(85),
                     position_type: PositionType::Absolute,
-                    top: Val::Percent(30.0),
+                    top: Val::Percent(15.0),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
                     flex_direction: FlexDirection::Row,
@@ -89,9 +91,9 @@ pub fn spawn_level_selection_menu(
 
 pub fn update_state(
     _click: On<Complete<ClickUI>>,
-    mut commands: Commands,
     input_focus: Res<InputFocus>,
     action: Query<&MenuAction, With<NavButton>>,
+    mut game_mode: Single<&mut SelectedLevel>,
     mut next_menu: ResMut<NextState<Menu>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
@@ -99,10 +101,8 @@ pub fn update_state(
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::SelectLevel(level) => {
-                    commands.spawn((
-                        SelectedLevel(level.clone()),
-                        DespawnOnExit(GameState::Playing),
-                    ));
+                    game_mode.0 = level.clone();
+
                     next_menu.set(Menu::None);
                     next_state.set(GameState::Playing);
                 }

@@ -2,7 +2,7 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
-use crate::car::{Car, Grounded, LapsTime, Progression, State};
+use crate::car::{Car, GameProgression, Grounded, RaceProgression, State};
 use crate::gamemodes::SelectedLevel;
 use crate::gameplay::TimeSinceStart;
 use crate::states::PlayingState;
@@ -46,7 +46,7 @@ pub fn handle_trigger_zone_collision(
     mut message_reader: MessageReader<CollisionStart>,
     zone_query: Query<&TriggerZone>,
     collider_query: Query<&TiledColliderOf>,
-    mut car_query: Query<(Entity, &mut Progression, &mut LapsTime), With<Car>>,
+    mut car_query: Query<(Entity, &mut RaceProgression, &mut GameProgression), With<Car>>,
     display_query: Query<Entity, (With<Text>, Without<TotalTimeDisplay>)>,
     time_since_start: Res<TimeSinceStart>,
 ) {
@@ -60,24 +60,30 @@ pub fn handle_trigger_zone_collision(
         let Some(actor_entity) = evt.body2 else {
             return;
         };
-        let Ok((car_entity, mut progression, mut laps_time)) = car_query.get_mut(actor_entity)
+        let Ok((_car_entity, mut race_progression, mut game_progression)) =
+            car_query.get_mut(actor_entity)
         else {
             return;
         };
         match zone {
             TriggerZone::Startingline => {
-                if progression.last_checkpoint == 3 || progression.current_turn == 0 {
-                    progression.current_turn += 1;
-                    progression.last_checkpoint = 0;
-                    laps_time.0.push(time_since_start.0.elapsed_secs());
+                if race_progression.last_checkpoint == 3 && race_progression.current_lap > 0 {
+                    race_progression.current_lap += 1;
+                    race_progression.last_checkpoint = 0;
+                    game_progression
+                        .current_race_times_mut()
+                        .add_time_from_full_timer(time_since_start.0.elapsed_secs());
                     for display_entity in display_query {
                         commands.entity(display_entity).insert(RedrawRequested);
                     }
+                } else if race_progression.current_lap == 0 {
+                    race_progression.current_lap += 1;
+                    race_progression.last_checkpoint = 0;
                 }
             }
             TriggerZone::CheckPoint(n) => {
-                if *n == progression.last_checkpoint + 1 {
-                    progression.last_checkpoint += 1;
+                if *n == race_progression.last_checkpoint + 1 {
+                    race_progression.last_checkpoint += 1;
                 }
             }
             _ => {}
@@ -90,13 +96,6 @@ fn insert_road_colliders(
     mut commands: Commands,
 ) {
     let evt = collider_created.event();
-    // commands
-    //     .entity(evt.origin)
-    //     .insert((Sensor, CollisionEventsEnabled));
-    // // If it comes from tile layer then it is the road
-    // if evt.event.source == TiledColliderSource::TilesLayer {
-    //     commands.entity(evt.origin).insert(Road);
-    // }
     match evt.event.source {
         TiledColliderSource::TilesLayer => commands.entity(evt.origin).insert(Road),
         TiledColliderSource::Object => commands

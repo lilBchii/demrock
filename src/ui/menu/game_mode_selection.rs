@@ -3,21 +3,18 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
 use crate::{
-    common::GAME_NAME,
+    gamemodes::{ArcadeLevels, GameMode, SelectedLevel},
     states::{GameState, Menu},
-    ui::font::FontAssets,
-    ui::{header, nav_button, navigate, ui_root, ClickUI, NavButton},
+    ui::{font::FontAssets, header, nav_button, navigate, ui_root, ClickUI, NavButton, H2_SIZE},
 };
 
 #[derive(Component)]
 pub(crate) enum MenuAction {
-    Play,
-    Settings,
-    Credits,
-    Quit,
+    Arcade,
+    Custom,
 }
 
-pub fn spawn_main_menu(
+pub fn spawn_mode_selection_menu(
     mut commands: Commands,
     fonts: Res<FontAssets>,
     asset_server: Res<AssetServer>,
@@ -27,20 +24,20 @@ pub fn spawn_main_menu(
     let border_image = asset_server.load("button.png");
 
     commands
-        .spawn((ui_root("main menu"), DespawnOnExit(Menu::Main)))
+        .spawn((ui_root("main menu"), DespawnOnExit(Menu::ModeSelection)))
         .observe(navigate)
         .observe(update_state)
         .with_children(|parent| {
             parent.spawn(header(
-                GAME_NAME,
-                Val::Percent(30.0),
-                80.0,
+                "Game mode",
+                Val::Percent(15.0),
+                H2_SIZE,
                 fonts.default.clone(),
             ));
             parent
                 .spawn(Node {
                     width: percent(100),
-                    height: percent(70),
+                    height: percent(85),
                     position_type: PositionType::Absolute,
                     top: Val::Percent(30.0),
                     justify_content: JustifyContent::Center,
@@ -53,38 +50,22 @@ pub fn spawn_main_menu(
                     input_focus.set(
                         parent
                             .spawn(nav_button(
-                                "Play",
+                                "Arcade",
                                 button_width,
                                 button_height,
                                 fonts.default.clone(),
                                 border_image.clone(),
-                                MenuAction::Play,
+                                MenuAction::Arcade,
                             ))
                             .id(),
                     );
                     parent.spawn(nav_button(
-                        "Settings",
+                        "Custom",
                         button_width,
                         button_height,
                         fonts.default.clone(),
                         border_image.clone(),
-                        MenuAction::Settings,
-                    ));
-                    parent.spawn(nav_button(
-                        "Credits",
-                        button_width,
-                        button_height,
-                        fonts.default.clone(),
-                        border_image.clone(),
-                        MenuAction::Credits,
-                    ));
-                    parent.spawn(nav_button(
-                        "Quit",
-                        button_width,
-                        button_height,
-                        fonts.default.clone(),
-                        border_image.clone(),
-                        MenuAction::Quit,
+                        MenuAction::Custom,
                     ));
                 });
         });
@@ -94,25 +75,25 @@ pub fn update_state(
     _click: On<Complete<ClickUI>>,
     input_focus: Res<InputFocus>,
     action: Query<&MenuAction, With<NavButton>>,
+    mut game_mode_query: Single<(&mut SelectedLevel, &mut ArcadeLevels, &mut GameMode)>,
     mut next_menu: ResMut<NextState<Menu>>,
-    // mut next_state: ResMut<NextState<GameState>>,
-    mut app_exit: MessageWriter<AppExit>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     if let Some(input_focus) = input_focus.0 {
         if let Ok(action) = action.get(input_focus) {
             match action {
-                MenuAction::Play => {
-                    // TODO: set menu to PlayerMenu
-                    next_menu.set(Menu::ModeSelection);
+                MenuAction::Arcade => {
+                    let arcade_levels = ArcadeLevels::init();
+                    game_mode_query.0 .0 = arcade_levels.levels[0].clone();
+                    *game_mode_query.1 = arcade_levels;
+                    *game_mode_query.2 = GameMode::Arcade;
+
+                    next_menu.set(Menu::None);
+                    next_state.set(GameState::Playing);
                 }
-                MenuAction::Settings => {
-                    next_menu.set(Menu::Settings);
-                }
-                MenuAction::Credits => {
-                    next_menu.set(Menu::Credits);
-                }
-                MenuAction::Quit => {
-                    app_exit.write(AppExit::Success);
+                MenuAction::Custom => {
+                    *game_mode_query.2 = GameMode::Free;
+                    next_menu.set(Menu::LevelSelection);
                 }
             };
         }

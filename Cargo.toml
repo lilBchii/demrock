@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 avian2d = "0.5.0"
 bevy = "0.18.0"
-bevy-inspector-egui = { version = "0.36.0", default-features = false, features = ["bevy_render", "bevy_pbr"] }
+# bevy-inspector-egui = { version = "0.36.0", default-features = false, features = ["bevy_render", "bevy_pbr"] }
 bevy_ecs_tiled = { version = "0.11.2", features = ["avian", "user_properties"] }
 bevy_enhanced_input = "0.22.2"
 bevy_ui = "0.18.0"
-fastrand = "2.3.0"
+rand = "0.10.0"

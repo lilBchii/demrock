@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
@@ -8,6 +10,7 @@ use crate::{
         CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION, CAR_ROTATION,
         CAR_SPRITE_SIZE,
     },
+    gamemodes::{GameMode, ARCADE_NUM_RACES},
     states::{GameState, Menu, PlayingState},
 };
 
@@ -63,40 +66,80 @@ pub enum State {
 pub struct Grounded;
 
 #[derive(Component)]
-pub struct HasFinished(pub bool);
-
-#[derive(Component)]
 struct FallingTimer(Timer);
 
+// Actual progression of the player during a race
 #[derive(Component)]
-pub struct Progression {
+pub struct RaceProgression {
     pub last_checkpoint: u8,
-    pub current_turn: u8,
+    pub current_lap: u8,
 }
 
-// Component storing time elapsed since begining of the race and the end of a lap
-// Lap 0 ends LapsTime.0[0] seconds after the begining of the race,
-// Lap 1 LapsTime.0[1] ...
-#[derive(Component)]
-pub struct LapsTime(pub Vec<f32>);
+#[derive(Component, Debug)]
+pub struct GameProgression {
+    n_race_finished: usize,
+    races_time: Vec<LapsTime>,
+    current_race: usize,
+}
 
-impl ToString for LapsTime {
-    fn to_string(&self) -> String {
-        let mut string_buffer = String::new();
-        for (lap, time) in self
-            .0
-            .iter()
-            .scan(0.0, |state, time| {
-                let lap_time = time - *state;
-                *state = *time;
-                Some(lap_time)
-            })
-            .skip(1)
-            .enumerate()
-        {
-            string_buffer.push_str(&format!("lap {}: {:.3}\n", lap + 1, time));
+impl GameProgression {
+    pub fn new() -> Self {
+        let mut races_time = Vec::with_capacity(ARCADE_NUM_RACES);
+        races_time.push(LapsTime::new());
+        Self {
+            n_race_finished: 0,
+            current_race: 0,
+            races_time,
         }
-        string_buffer
+    }
+
+    pub fn push_laps_times(&mut self, laps_time: LapsTime) {
+        self.races_time.push(laps_time);
+        // self.current_race += 1;
+    }
+
+    pub fn incr_n_race(&mut self) {
+        self.n_race_finished += 1;
+    }
+
+    pub fn next_race(&mut self) {
+        self.current_race += 1;
+    }
+
+    pub fn current_race_times(&self) -> &LapsTime {
+        &self.races_time[self.current_race]
+    }
+
+    pub fn current_race_times_mut(&mut self) -> &mut LapsTime {
+        &mut self.races_time[self.current_race]
+    }
+
+    pub fn races_times(&self) -> &Vec<LapsTime> {
+        &self.races_time
+    }
+}
+
+// Time for each lap of a race
+#[derive(Clone, Debug)]
+pub struct LapsTime(Vec<f32>);
+
+impl LapsTime {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn add_time_from_full_timer(&mut self, timer: f32) {
+        let prev_laps_total_t: f32 = self.0.iter().sum();
+        self.0.push(timer - prev_laps_total_t);
+    }
+}
+
+impl Display for LapsTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (lap, t) in self.0.iter().enumerate() {
+            writeln!(f, "lap {}: {:.3}", lap + 1, t)?;
+        }
+        Ok(())
     }
 }
 
@@ -113,7 +156,6 @@ struct PhysicsBundle {
 
 #[derive(Bundle)]
 struct StateBundle {
-    has_finished: HasFinished,
     state: State,
 }
 
@@ -127,8 +169,8 @@ struct AppearanceBundle {
 
 #[derive(Bundle)]
 struct ScoreBundle {
-    lap_times: LapsTime,
-    progression: Progression,
+    game_progression: GameProgression,
+    race_progression: RaceProgression,
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
@@ -157,7 +199,6 @@ fn spawn_car(
             brake: CAR_BRAKE,
         },
         StateBundle {
-            has_finished: HasFinished(false),
             state: State::Neutral,
         },
         AppearanceBundle {
@@ -176,10 +217,10 @@ fn spawn_car(
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
         ScoreBundle {
-            lap_times: LapsTime(Vec::new()),
-            progression: Progression {
+            game_progression: GameProgression::new(),
+            race_progression: RaceProgression {
                 last_checkpoint: 0,
-                current_turn: 0,
+                current_lap: 0,
             },
         },
         PhysicsBundle {
@@ -234,8 +275,7 @@ fn setup_car(
             &mut RotationFactor,
             &mut LinearVelocity,
             &mut State,
-            &mut Progression,
-            &mut LapsTime,
+            &mut RaceProgression,
             &mut Visibility,
         ),
         With<Car>,
@@ -251,8 +291,7 @@ fn setup_car(
         mut rotation_factor,
         mut linear_velocity,
         mut state,
-        mut progression,
-        mut laps_time,
+        mut race_progression,
         mut visibility,
     ) in car_query
     {
@@ -264,11 +303,10 @@ fn setup_car(
         *rotation_factor = RotationFactor(0.0);
         *linear_velocity = LinearVelocity::ZERO;
         *state = State::Neutral;
-        *progression = Progression {
+        *race_progression = RaceProgression {
             last_checkpoint: 0,
-            current_turn: 0,
+            current_lap: 0,
         };
-        *laps_time = LapsTime(Vec::new());
         *visibility = Visibility::Visible;
         commands
             .entity(entity)
