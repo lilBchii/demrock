@@ -18,7 +18,7 @@ use bevy::state::state_scoped::DespawnOnExit;
 use bevy::time::{Stopwatch, Time, Timer, TimerMode};
 use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent, TiledMap};
 
-use crate::animation::AnimationTimer;
+use crate::animation::{AnimationIndex, AnimationIndices, AnimationTimer};
 use crate::car::{Car, CarSpawnPoint, GameProgression, Grounded, LapsTime, RaceProgression};
 use crate::gamemodes::{ArcadeLevels, GameMode, SelectedLevel};
 use crate::states::{Menu, Pause, PlayingState};
@@ -82,6 +82,8 @@ fn spawn_countdown(
             asset_server.load("countdown.png"),
             TextureAtlas { layout, index: 0 },
         ),
+        AnimationIndices::with_indices(&[5]),
+        AnimationIndex(0),
         AnimationTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         DespawnOnExit(PlayingState::Countdown),
         Transform::from_translation(Vec3::new(
@@ -94,24 +96,14 @@ fn spawn_countdown(
 }
 
 fn play_countdown(
-    mut countdown: Query<(&mut StartCountdown, &mut AnimationTimer, &mut Sprite)>,
+    mut countdown: Query<&mut StartCountdown>,
     mut next_state: ResMut<NextState<PlayingState>>,
     time: Res<Time>,
 ) {
-    for (mut countdown_timer, mut animation_timer, mut sprite) in countdown.iter_mut() {
+    for mut countdown_timer in countdown.iter_mut() {
         countdown_timer.0.tick(time.delta());
-        animation_timer.0.tick(time.delta());
         if countdown_timer.0.just_finished() {
             next_state.set(PlayingState::Racing);
-        }
-        if animation_timer.0.just_finished() {
-            if let Some(atlas) = &mut sprite.texture_atlas {
-                if atlas.index >= 4 {
-                    atlas.index = 0;
-                } else {
-                    atlas.index += 1;
-                }
-            }
         }
     }
 }
