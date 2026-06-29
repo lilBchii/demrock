@@ -1,15 +1,23 @@
 use avian2d::PhysicsPlugins;
-use bevy::{prelude::*, window::CursorOptions};
-use bevy_ecs_tiled::{
-    prelude::{TiledPhysicsAvianBackend, TiledPhysicsPlugin},
-    tiled::TiledPlugin,
-};
+
+use bevy::app::{App, PluginGroup};
+use bevy::camera::ClearColor;
+use bevy::color::Color;
+use bevy::image::ImagePlugin;
+use bevy::prelude::AppExtStates;
+use bevy::window::{CursorOptions, Window, WindowPlugin};
+use bevy::DefaultPlugins;
+
+use bevy_ecs_tiled::prelude::{TiledPhysicsAvianBackend, TiledPhysicsPlugin};
+use bevy_ecs_tiled::tiled::TiledPlugin;
+
 use bevy_enhanced_input::EnhancedInputPlugin;
 // use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 use camera::*;
 use tilemap::*;
 
 use crate::{
+    animation::AnimationPlugin,
     car::CarPlugin,
     common::{MultiplayerMode, GAME_NAME},
     gamemodes::GameModePlugin,
@@ -62,6 +70,7 @@ fn main() {
             GameplayPlugin,
             InGameUiPlugin,
             GameModePlugin,
+            AnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(MultiplayerMode::SinglePlayer)

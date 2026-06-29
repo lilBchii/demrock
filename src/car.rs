@@ -5,12 +5,12 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
-    animation::{compute_atlas_index, custom_layout, AnimationIndices, AnimationTimer},
+    animation::{custom_layout, AnimationIndex, AnimationIndices, AnimationTimer},
     common::{
         CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION, CAR_ROTATION,
         CAR_SPRITE_SIZE,
     },
-    gamemodes::{GameMode, ARCADE_NUM_RACES},
+    gamemodes::ARCADE_NUM_RACES,
     states::{GameState, Menu, PlayingState},
 };
 
@@ -22,7 +22,7 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (deccelerate, animate_car, animate_falling).run_if(in_state(PlayingState::Racing)),
+            (deccelerate, update_state, animate_falling).run_if(in_state(PlayingState::Racing)),
         )
         .add_systems(OnEnter(PlayingState::Racing), enable_input)
         .add_systems(OnEnter(GameState::Playing), spawn_car)
@@ -163,7 +163,8 @@ struct StateBundle {
 struct AppearanceBundle {
     visibility: Visibility,
     sprite: Sprite,
-    animation_indices: AnimationIndices<CAR_NUM_ANIMATION>,
+    animation_indices: AnimationIndices,
+    animation_line: AnimationIndex,
     animation_timer: AnimationTimer,
 }
 
@@ -210,10 +211,8 @@ fn spawn_car(
                     index: 0,
                 },
             ),
-            animation_indices: AnimationIndices::<CAR_NUM_ANIMATION> {
-                index: 0,
-                indices: CAR_ANIMATION_INDICES,
-            },
+            animation_indices: AnimationIndices::with_indices(&CAR_ANIMATION_INDICES),
+            animation_line: AnimationIndex(0),
             animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
         },
         ScoreBundle {
@@ -356,44 +355,40 @@ fn deccelerate(
     }
 }
 
-fn animate_car(
-    mut q_car: Query<
-        (
-            &RotationFactor,
-            &State,
-            &mut AnimationTimer,
-            &mut AnimationIndices<CAR_NUM_ANIMATION>,
-            &mut Sprite,
-        ),
-        With<Car>,
-    >,
-    time: Res<Time>,
+fn update_state(
+    mut appearance_query: Query<(
+        &RotationFactor,
+        &mut AnimationIndex,
+        &mut Sprite,
+        Ref<State>,
+    )>,
 ) {
-    for (rotation, state, mut timer, mut indices, mut sprite) in &mut q_car {
-        timer.0.tick(time.delta());
-        if timer.0.just_finished() {
-            let animation_line = match state {
-                State::Neutral => 0,
+    for (rotation, mut animation_index, mut sprite, state) in &mut appearance_query {
+        if state.is_changed() {
+            match *state {
+                State::Neutral => {
+                    *animation_index = AnimationIndex(0);
+                }
                 State::Accelerating => {
                     if rotation.0 > 0.2 {
                         // car turns on the left
                         sprite.flip_x = false;
-                        2
+                        *animation_index = AnimationIndex(2);
                     } else if rotation.0 < -0.2 {
                         // car turns on the right
                         sprite.flip_x = true;
-                        2
+                        *animation_index = AnimationIndex(2);
                     } else {
                         // car doesn't turn
-                        1
+                        *animation_index = AnimationIndex(1);
                     }
                 }
-                State::Braking => 3,
-                State::Falling => 0,
-            };
-            if let Some(atlas) = &mut sprite.texture_atlas {
-                atlas.index = compute_atlas_index(animation_line, indices.index, &indices.indices);
-                indices.index = atlas.index;
+                State::Braking => {
+                    *animation_index = AnimationIndex(3);
+                }
+                State::Falling => {
+                    *animation_index = AnimationIndex(0);
+                }
             }
         }
     }
