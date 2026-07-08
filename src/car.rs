@@ -26,7 +26,7 @@ impl Plugin for CarPlugin {
         )
         .add_systems(OnEnter(PlayingState::Racing), enable_input)
         .add_systems(OnEnter(GameState::Playing), spawn_car)
-        .add_systems(OnExit(Menu::None), disable_input)
+        .add_systems(OnExit(PlayingState::Racing), disable_input)
         .add_input_context::<Car>()
         .add_observer(setup_car)
         .add_observer(accelerate)
@@ -91,6 +91,13 @@ impl GameProgression {
             current_race: 0,
             races_time,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.n_race_finished = 0;
+        self.current_race = 0;
+        self.races_time.clear();
+        self.races_time.push(LapsTime::new());
     }
 
     pub fn push_laps_times(&mut self, laps_time: LapsTime) {
@@ -356,39 +363,35 @@ fn deccelerate(
 }
 
 fn update_state(
-    mut appearance_query: Query<(
-        &RotationFactor,
-        &mut AnimationIndex,
-        &mut Sprite,
-        Ref<State>,
-    )>,
+    mut appearance_query: Query<
+        (&RotationFactor, &mut AnimationIndex, &mut Sprite, &State),
+        (Changed<State>, With<Car>),
+    >,
 ) {
     for (rotation, mut animation_index, mut sprite, state) in &mut appearance_query {
-        if state.is_changed() {
-            match *state {
-                State::Neutral => {
-                    *animation_index = AnimationIndex(0);
+        match *state {
+            State::Neutral => {
+                *animation_index = AnimationIndex(0);
+            }
+            State::Accelerating => {
+                if rotation.0 > 0.2 {
+                    // car turns on the left
+                    sprite.flip_x = false;
+                    *animation_index = AnimationIndex(2);
+                } else if rotation.0 < -0.2 {
+                    // car turns on the right
+                    sprite.flip_x = true;
+                    *animation_index = AnimationIndex(2);
+                } else {
+                    // car doesn't turn
+                    *animation_index = AnimationIndex(1);
                 }
-                State::Accelerating => {
-                    if rotation.0 > 0.2 {
-                        // car turns on the left
-                        sprite.flip_x = false;
-                        *animation_index = AnimationIndex(2);
-                    } else if rotation.0 < -0.2 {
-                        // car turns on the right
-                        sprite.flip_x = true;
-                        *animation_index = AnimationIndex(2);
-                    } else {
-                        // car doesn't turn
-                        *animation_index = AnimationIndex(1);
-                    }
-                }
-                State::Braking => {
-                    *animation_index = AnimationIndex(3);
-                }
-                State::Falling => {
-                    *animation_index = AnimationIndex(0);
-                }
+            }
+            State::Braking => {
+                *animation_index = AnimationIndex(3);
+            }
+            State::Falling => {
+                *animation_index = AnimationIndex(0);
             }
         }
     }

@@ -143,6 +143,7 @@ pub fn update_state(
     _click: On<Complete<ClickUI>>,
     input_focus: Res<InputFocus>,
     action: Query<&MenuAction, With<NavButton>>,
+    mut progression: Query<&mut GameProgression, With<Car>>,
     mut next_menu: ResMut<NextState<Menu>>,
     mut next_state: ResMut<NextState<PlayingState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
@@ -150,7 +151,14 @@ pub fn update_state(
     if let Some(input_focus) = input_focus.0 {
         if let Ok(action) = action.get(input_focus) {
             match action {
-                MenuAction::Restart | MenuAction::Continue => {
+                MenuAction::Restart => {
+                    progression
+                        .iter_mut()
+                        .for_each(|mut progression| progression.reset());
+                    next_menu.set(Menu::None);
+                    next_state.set(PlayingState::Countdown);
+                }
+                MenuAction::Continue => {
                     next_menu.set(Menu::None);
                     next_state.set(PlayingState::Countdown);
                 }
