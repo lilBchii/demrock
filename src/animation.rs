@@ -23,6 +23,13 @@ impl AnimationIndices {
             indices: indices.into(),
         }
     }
+
+    pub fn single_with_frames(n_frames: u32) -> Self {
+        Self {
+            frame_index: 0,
+            indices: Vec::from([n_frames]),
+        }
+    }
 }
 
 #[derive(Component, Deref, DerefMut)]

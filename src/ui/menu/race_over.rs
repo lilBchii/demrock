@@ -33,7 +33,7 @@ pub fn spawn_race_over_menu(
         .with_children(|screen| {
             // Spawn the header
             screen.spawn(header(
-                "GAME OVER",
+                "RACE FINISHED",
                 Val::Percent(15.0),
                 H2_SIZE,
                 fonts.default.clone(),

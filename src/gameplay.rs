@@ -82,7 +82,7 @@ fn spawn_countdown(
             asset_server.load("countdown.png"),
             TextureAtlas { layout, index: 0 },
         ),
-        AnimationIndices::with_indices(&[5]),
+        AnimationIndices::single_with_frames(5),
         AnimationIndex(0),
         AnimationTimer(Timer::from_seconds(1.0, TimerMode::Repeating)),
         DespawnOnExit(PlayingState::Countdown),
@@ -130,9 +130,8 @@ fn game_over(
     };
     // TODO: check if all the players have finished
     for (progression, mut game_progression, is_grounded) in &mut car_query {
-        if progression.current_lap == n_laps.0 as u8 + 1 {
-            // player ended all laps of the race
-            level_serie.increment_index();
+        if progression.current_lap == n_laps.0 + 1 && level_serie.increment_index() {
+            // player finished all laps of the race
             match *game_mode_query {
                 GameMode::Arcade => {
                     game_progression.incr_n_race();

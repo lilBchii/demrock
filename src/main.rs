@@ -44,6 +44,9 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: GAME_NAME.into(),
+                        decorations: false,
+                        skip_taskbar: false,
+                        movable_by_window_background: false,
                         ..Default::default()
                     }),
                     primary_cursor_options: Some(CursorOptions {

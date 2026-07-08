@@ -1,4 +1,4 @@
-use bevy::app::{Plugin, Startup};
+use bevy::app::{App, Plugin, Startup};
 use bevy::ecs::component::Component;
 use bevy::ecs::system::Commands;
 use rand::seq::IndexedRandom;
@@ -10,7 +10,7 @@ pub const ARCADE_NUM_RACES: usize = 3;
 pub struct GameModePlugin;
 
 impl Plugin for GameModePlugin {
-    fn build(&self, app: &mut bevy::app::App) {
+    fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_game_mode);
     }
 }
@@ -53,6 +53,7 @@ impl ArcadeLevels {
 
     // goes up to ARCADAE_NUM_RACES such that we can know when the serie
     // is finished
+    #[must_use]
     pub fn increment_index(&mut self) -> bool {
         let index = self.index + 1;
         if index > ARCADE_NUM_RACES {
@@ -72,13 +73,12 @@ impl ArcadeLevels {
     }
 }
 
+// TODO: modify with component resource with bevy 19
+// and spawn when needed
 pub fn spawn_game_mode(mut commands: Commands) {
     commands.spawn((
         GameMode::Arcade,
         SelectedLevel(Level::Playground),
-        ArcadeLevels {
-            levels: [Level::Playground, Level::Galabusa, Level::Demcity],
-            index: 0,
-        },
+        ArcadeLevels::default(),
     ));
 }

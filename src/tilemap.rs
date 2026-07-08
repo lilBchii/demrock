@@ -39,7 +39,7 @@ pub enum TriggerZone {
 }
 
 #[derive(Component)]
-pub struct NumberOfLaps(pub usize);
+pub struct NumberOfLaps(pub u8);
 
 pub fn handle_trigger_zone_collision(
     mut commands: Commands,
