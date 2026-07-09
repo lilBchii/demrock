@@ -5,7 +5,9 @@ use bevy_enhanced_input::prelude::Complete;
 use crate::{
     gamemodes::{ArcadeLevels, GameMode, SelectedLevel},
     states::{GameState, Menu},
-    ui::{font::FontAssets, header, nav_button, navigate, ui_root, ClickUI, NavButton, H2_SIZE},
+    ui::{
+        font::FontAssets, header, nav_button, navigate, ui_root, Back, ClickUI, NavButton, H2_SIZE,
+    },
 };
 
 #[derive(Component)]
@@ -27,6 +29,7 @@ pub fn spawn_mode_selection_menu(
         .spawn((ui_root("main menu"), DespawnOnExit(Menu::ModeSelection)))
         .observe(navigate)
         .observe(update_state)
+        .observe(go_back)
         .with_children(|parent| {
             parent.spawn(header(
                 "Game mode",
@@ -98,4 +101,8 @@ pub fn update_state(
             };
         }
     }
+}
+
+pub fn go_back(_click: On<Complete<Back>>, mut next_menu: ResMut<NextState<Menu>>) {
+    next_menu.set(Menu::Main);
 }

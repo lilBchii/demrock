@@ -114,5 +114,5 @@ pub fn update_state(
 }
 
 pub fn go_back(_click: On<Complete<Back>>, mut next_menu: ResMut<NextState<Menu>>) {
-    next_menu.set(Menu::Main);
+    next_menu.set(Menu::ModeSelection);
 }
