@@ -1,10 +1,10 @@
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{AutoFocus, InputFocus};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
 use crate::{
     common::GAME_NAME,
-    states::{GameState, Menu},
+    states::Menu,
     ui::font::FontAssets,
     ui::{header, nav_button, navigate, ui_root, ClickUI, NavButton},
 };
@@ -21,7 +21,6 @@ pub fn spawn_main_menu(
     mut commands: Commands,
     fonts: Res<FontAssets>,
     asset_server: Res<AssetServer>,
-    mut input_focus: ResMut<InputFocus>,
 ) {
     let (button_width, button_height) = (Val::Px(400.0), Val::Px(80.0));
     let border_image = asset_server.load("button.png");
@@ -50,18 +49,17 @@ pub fn spawn_main_menu(
                     ..default()
                 })
                 .with_children(|parent| {
-                    input_focus.set(
-                        parent
-                            .spawn(nav_button(
-                                "Play",
-                                button_width,
-                                button_height,
-                                fonts.default.clone(),
-                                border_image.clone(),
-                                MenuAction::Play,
-                            ))
-                            .id(),
-                    );
+                    parent.spawn((
+                        nav_button(
+                            "Play",
+                            button_width,
+                            button_height,
+                            fonts.default.clone(),
+                            border_image.clone(),
+                            MenuAction::Play,
+                        ),
+                        AutoFocus,
+                    ));
                     parent.spawn(nav_button(
                         "Settings",
                         button_width,
@@ -98,7 +96,7 @@ pub fn update_state(
     // mut next_state: ResMut<NextState<GameState>>,
     mut app_exit: MessageWriter<AppExit>,
 ) {
-    if let Some(input_focus) = input_focus.0 {
+    if let Some(input_focus) = input_focus.get() {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Play => {

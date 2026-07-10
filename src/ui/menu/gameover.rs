@@ -1,8 +1,8 @@
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{AutoFocus, InputFocus};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
-use crate::car::{Car, GameProgression, LapsTime};
+use crate::car::{Car, GameProgression};
 use crate::states::{GameState, Menu, PlayingState};
 use crate::ui::{
     font::FontAssets, header, nav_button, navigate, ui_root, ClickUI, NavButton, H2_SIZE,
@@ -21,7 +21,6 @@ pub fn spawn_gameover_menu(
     score_query: Query<&GameProgression, With<Car>>,
     fonts: Res<FontAssets>,
     asset_server: Res<AssetServer>,
-    mut input_focus: ResMut<InputFocus>,
 ) {
     let border_image = asset_server.load("button.png");
 
@@ -114,18 +113,17 @@ pub fn spawn_gameover_menu(
                         ..default()
                     })
                     .with_children(|buttons| {
-                        input_focus.set(
-                            buttons
-                                .spawn(nav_button(
-                                    "Restart",
-                                    px(MENU_BUTTON_SIZE.0),
-                                    px(MENU_BUTTON_SIZE.1),
-                                    fonts.default.clone(),
-                                    border_image.clone(),
-                                    MenuAction::Restart,
-                                ))
-                                .id(),
-                        );
+                        buttons.spawn((
+                            nav_button(
+                                "Restart",
+                                px(MENU_BUTTON_SIZE.0),
+                                px(MENU_BUTTON_SIZE.1),
+                                fonts.default.clone(),
+                                border_image.clone(),
+                                MenuAction::Restart,
+                            ),
+                            AutoFocus,
+                        ));
                         buttons.spawn(nav_button(
                             "Exit",
                             px(MENU_BUTTON_SIZE.0),
@@ -148,7 +146,7 @@ pub fn update_state(
     mut next_state: ResMut<NextState<PlayingState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    if let Some(input_focus) = input_focus.0 {
+    if let Some(input_focus) = input_focus.get() {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Restart => {

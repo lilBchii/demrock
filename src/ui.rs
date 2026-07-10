@@ -49,8 +49,8 @@ pub fn nav_interaction(
     input_focus: Res<InputFocus>,
 ) {
     for (entity, mut interaction) in &mut interactions {
-        if input_focus.0 == Some(entity) {
-            if clicks.contains(ActionEvents::FIRED) {
+        if input_focus.get() == Some(entity) {
+            if clicks.contains(ActionEvents::FIRE) {
                 *interaction = NavInteraction::Click;
             } else if !matches!(*interaction, NavInteraction::Select) {
                 *interaction = NavInteraction::Select;
@@ -151,7 +151,7 @@ pub fn header(title: &'static str, height: Val, font_size: f32, font: Handle<Fon
         children![(
             Text::new(title),
             TextFont::from_font_size(font_size).with_font(font),
-            TextLayout::new_with_justify(Justify::Center),
+            TextLayout::justify(Justify::Center),
         )],
     )
 }

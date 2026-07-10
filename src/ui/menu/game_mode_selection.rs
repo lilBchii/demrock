@@ -1,4 +1,4 @@
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{AutoFocus, InputFocus};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
@@ -20,7 +20,6 @@ pub fn spawn_mode_selection_menu(
     mut commands: Commands,
     fonts: Res<FontAssets>,
     asset_server: Res<AssetServer>,
-    mut input_focus: ResMut<InputFocus>,
 ) {
     let (button_width, button_height) = (Val::Px(400.0), Val::Px(80.0));
     let border_image = asset_server.load("button.png");
@@ -50,18 +49,17 @@ pub fn spawn_mode_selection_menu(
                     ..default()
                 })
                 .with_children(|parent| {
-                    input_focus.set(
-                        parent
-                            .spawn(nav_button(
-                                "Arcade",
-                                button_width,
-                                button_height,
-                                fonts.default.clone(),
-                                border_image.clone(),
-                                MenuAction::Arcade,
-                            ))
-                            .id(),
-                    );
+                    parent.spawn((
+                        nav_button(
+                            "Arcade",
+                            button_width,
+                            button_height,
+                            fonts.default.clone(),
+                            border_image.clone(),
+                            MenuAction::Arcade,
+                        ),
+                        AutoFocus,
+                    ));
                     parent.spawn(nav_button(
                         "Custom",
                         button_width,
@@ -82,7 +80,7 @@ pub fn update_state(
     mut next_menu: ResMut<NextState<Menu>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if let Some(input_focus) = input_focus.0 {
+    if let Some(input_focus) = input_focus.get() {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Arcade => {

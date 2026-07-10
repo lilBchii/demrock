@@ -1,4 +1,4 @@
-use bevy::input_focus::InputFocus;
+use bevy::input_focus::{AutoFocus, InputFocus};
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Complete;
 
@@ -22,7 +22,6 @@ pub fn spawn_race_over_menu(
     score_query: Query<&GameProgression, With<Car>>,
     fonts: Res<FontAssets>,
     asset_server: Res<AssetServer>,
-    mut input_focus: ResMut<InputFocus>,
 ) {
     let border_image = asset_server.load("button.png");
 
@@ -99,18 +98,17 @@ pub fn spawn_race_over_menu(
                         ..default()
                     })
                     .with_children(|buttons| {
-                        input_focus.set(
-                            buttons
-                                .spawn(nav_button(
-                                    "Continue",
-                                    px(MENU_BUTTON_SIZE.0),
-                                    px(MENU_BUTTON_SIZE.1),
-                                    fonts.default.clone(),
-                                    border_image.clone(),
-                                    MenuAction::Continue,
-                                ))
-                                .id(),
-                        );
+                        buttons.spawn((
+                            nav_button(
+                                "Continue",
+                                px(MENU_BUTTON_SIZE.0),
+                                px(MENU_BUTTON_SIZE.1),
+                                fonts.default.clone(),
+                                border_image.clone(),
+                                MenuAction::Continue,
+                            ),
+                            AutoFocus,
+                        ));
                         buttons.spawn(nav_button(
                             "Exit",
                             px(MENU_BUTTON_SIZE.0),
@@ -133,7 +131,7 @@ pub fn update_state(
     mut next_state: ResMut<NextState<PlayingState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
-    if let Some(input_focus) = input_focus.0 {
+    if let Some(input_focus) = input_focus.get() {
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Continue => {

@@ -1,7 +1,4 @@
-use bevy::{
-    input_focus::{directional_navigation::DirectionalNavigationPlugin, InputDispatchPlugin},
-    prelude::*,
-};
+use bevy::{input_focus::directional_navigation::DirectionalNavigationPlugin, prelude::*};
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
@@ -23,7 +20,7 @@ impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.insert_state(Menu::Main)
             .add_input_context::<UI>()
-            .add_plugins((InputDispatchPlugin, DirectionalNavigationPlugin))
+            .add_plugins(DirectionalNavigationPlugin)
             .add_systems(
                 Update,
                 (button_style, nav_interaction).run_if(not(in_state(Menu::None))),
