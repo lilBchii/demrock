@@ -1,5 +1,7 @@
 use avian2d::PhysicsPlugins;
 
+// use avian2d::diagnostics::{PhysicsDiagnosticsPlugin, PhysicsEntityDiagnosticsPlugin};
+// use avian2d::prelude::{PhysicsDebugPlugin, PhysicsDiagnosticsUiPlugin};
 use bevy::app::{App, PluginGroup};
 use bevy::camera::ClearColor;
 use bevy::color::Color;
@@ -62,6 +64,12 @@ fn main() {
         ))
         .add_plugins(EnhancedInputPlugin)
         .add_plugins(PhysicsPlugins::default().with_length_unit(5.0))
+        // .add_plugins((
+        //     PhysicsDebugPlugin::default(),
+        //     PhysicsDiagnosticsPlugin,
+        //     PhysicsDiagnosticsUiPlugin,
+        //     PhysicsEntityDiagnosticsPlugin,
+        // ))
         // .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
         .insert_state(GameState::Menu)
         .add_plugins((

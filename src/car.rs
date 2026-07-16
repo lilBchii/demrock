@@ -159,6 +159,7 @@ struct PhysicsBundle {
     body: RigidBody,
     colliding_entities: CollidingEntities,
     interpolation: TransformInterpolation,
+    collision_events: CollisionEventsEnabled,
 }
 
 #[derive(Bundle)]
@@ -237,6 +238,7 @@ fn spawn_car(
             body: RigidBody::Kinematic,
             colliding_entities: CollidingEntities::default(),
             interpolation: TransformInterpolation,
+            collision_events: CollisionEventsEnabled,
         },
         FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
         actions!(Car[

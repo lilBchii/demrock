@@ -45,23 +45,17 @@ pub fn handle_trigger_zone_collision(
     mut commands: Commands,
     mut message_reader: MessageReader<CollisionStart>,
     zone_query: Query<&TriggerZone>,
-    collider_query: Query<&TiledColliderOf>,
+    // collider_query: Query<&TiledColliderOf>,
     mut car_query: Query<(Entity, &mut RaceProgression, &mut GameProgression), With<Car>>,
     display_query: Query<Entity, (With<Text>, Without<TotalTimeDisplay>)>,
     time_since_start: Res<TimeSinceStart>,
 ) {
     for evt in message_reader.read() {
-        let Ok(zone) = collider_query
-            .get(evt.collider1)
-            .and_then(|&collider_of| zone_query.get(*collider_of))
-        else {
-            return;
-        };
-        let Some(actor_entity) = evt.body2 else {
+        let Ok(zone) = zone_query.get(evt.collider2) else {
             return;
         };
         let Ok((_car_entity, mut race_progression, mut game_progression)) =
-            car_query.get_mut(actor_entity)
+            car_query.get_mut(evt.collider1)
         else {
             return;
         };
@@ -79,6 +73,9 @@ pub fn handle_trigger_zone_collision(
                 } else if race_progression.current_lap == 0 {
                     race_progression.current_lap += 1;
                     race_progression.last_checkpoint = 0;
+                    for display_entity in display_query {
+                        commands.entity(display_entity).insert(RedrawRequested);
+                    }
                 }
             }
             TriggerZone::CheckPoint(n) => {
@@ -97,10 +94,16 @@ fn insert_road_colliders(
 ) {
     let evt = collider_created.event();
     match evt.event.source {
-        TiledColliderSource::TilesLayer => commands.entity(evt.origin).insert(Road),
-        TiledColliderSource::Object => commands
-            .entity(evt.origin)
-            .insert((Sensor, CollisionEventsEnabled)),
+        TiledColliderSource::TilesLayer => {
+            println!("insert road");
+            commands.entity(evt.origin).insert(Road)
+        }
+        TiledColliderSource::Object => {
+            println!("insert collider");
+            commands
+                .entity(evt.origin)
+                .insert((Sensor /*CollisionEventsEnabled*/,))
+        }
     };
 }
 
