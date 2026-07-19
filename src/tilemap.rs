@@ -45,7 +45,6 @@ pub fn handle_trigger_zone_collision(
     mut commands: Commands,
     mut message_reader: MessageReader<CollisionStart>,
     zone_query: Query<&TriggerZone>,
-    // collider_query: Query<&TiledColliderOf>,
     mut car_query: Query<(Entity, &mut RaceProgression, &mut GameProgression), With<Car>>,
     display_query: Query<Entity, (With<Text>, Without<TotalTimeDisplay>)>,
     time_since_start: Res<TimeSinceStart>,
@@ -94,16 +93,8 @@ fn insert_road_colliders(
 ) {
     let evt = collider_created.event();
     match evt.event.source {
-        TiledColliderSource::TilesLayer => {
-            println!("insert road");
-            commands.entity(evt.origin).insert(Road)
-        }
-        TiledColliderSource::Object => {
-            println!("insert collider");
-            commands
-                .entity(evt.origin)
-                .insert((Sensor /*CollisionEventsEnabled*/,))
-        }
+        TiledColliderSource::TilesLayer => commands.entity(evt.origin).insert(Road),
+        TiledColliderSource::Object => commands.entity(evt.origin).insert(Sensor),
     };
 }
 
