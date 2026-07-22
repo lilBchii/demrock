@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::{f32::consts::FRAC_PI_2, fmt::Display};
 
 use avian2d::prelude::*;
 use bevy::prelude::*;
-use bevy_enhanced_input::prelude::*;
+use bevy_enhanced_input::prelude::{Press, *};
 
 use crate::{
     animation::{custom_layout, AnimationIndex, AnimationIndices, AnimationTimer},
@@ -22,7 +22,14 @@ impl Plugin for CarPlugin {
         app.register_type::<CarSpawnPoint>();
         app.add_systems(
             Update,
-            (deccelerate, update_state, animate_falling).run_if(in_state(PlayingState::Racing)),
+            (
+                deccelerate,
+                update_state,
+                animate_falling,
+                dash,
+                update_dash,
+            )
+                .run_if(in_state(PlayingState::Racing)),
         )
         .add_systems(OnEnter(PlayingState::Racing), enable_input)
         .add_systems(OnEnter(GameState::Playing), spawn_car)
@@ -33,7 +40,9 @@ impl Plugin for CarPlugin {
         .add_observer(rotate)
         .add_observer(input_cancel_acceleration)
         .add_observer(input_brake)
-        .add_observer(input_cancel_brake);
+        .add_observer(input_cancel_brake)
+        .add_observer(input_dash_left)
+        .add_observer(input_dash_right);
     }
 }
 
@@ -54,7 +63,7 @@ struct Config {
 }
 
 #[derive(Component)]
-pub enum State {
+pub enum CarState {
     Accelerating,
     Falling,
     Braking,
@@ -67,6 +76,15 @@ pub struct Grounded;
 
 #[derive(Component)]
 struct FallingTimer(Timer);
+
+#[derive(Component)]
+enum Dash {
+    Left,
+    Right,
+}
+
+#[derive(Component)]
+struct DashTimer(Timer);
 
 // Actual progression of the player during a race
 #[derive(Component)]
@@ -164,7 +182,7 @@ struct PhysicsBundle {
 
 #[derive(Bundle)]
 struct StateBundle {
-    state: State,
+    state: CarState,
 }
 
 #[derive(Bundle)]
@@ -180,6 +198,21 @@ struct AppearanceBundle {
 struct ScoreBundle {
     game_progression: GameProgression,
     race_progression: RaceProgression,
+}
+
+#[derive(Bundle)]
+struct DashBundle {
+    dash: Dash,
+    timer: DashTimer,
+}
+
+impl DashBundle {
+    fn init(dash: Dash) -> Self {
+        Self {
+            dash,
+            timer: DashTimer(Timer::from_seconds(0.5, TimerMode::Once)),
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
@@ -208,7 +241,7 @@ fn spawn_car(
             brake: CAR_BRAKE,
         },
         StateBundle {
-            state: State::Neutral,
+            state: CarState::Neutral,
         },
         AppearanceBundle {
             visibility: Visibility::Hidden,
@@ -264,8 +297,32 @@ fn spawn_car(
                     Axial::left_stick(),
                 )),
             ),
+            (
+                Action::<DashLeft>::new(),
+                Cooldown::new(0.8),
+                Press::new(0.2),
+                bindings![
+                    GamepadButton::LeftTrigger,
+                    // TODO: this is bad for keyboard
+                    KeyCode::ArrowLeft.with_mod_keys(ModKeys::SHIFT)
+                ]
+            ),
+            (
+                Action::<DashRight>::new(),
+                Cooldown::new(0.8),
+                Press::new(0.2),
+                bindings![
+                    GamepadButton::RightTrigger,
+                    // TODO: this is bad for keyboard
+                    KeyCode::ArrowRight.with_mod_keys(ModKeys::SHIFT)
+                ]
+            ),
         ]),
         ContextActivity::<Car>::INACTIVE,
+        ActionSettings {
+            consume_input: false,
+            ..Default::default()
+        },
         DespawnOnExit(GameState::Playing),
     ));
 }
@@ -282,7 +339,7 @@ fn setup_car(
             &mut Transform,
             &mut RotationFactor,
             &mut LinearVelocity,
-            &mut State,
+            &mut CarState,
             &mut RaceProgression,
             &mut Visibility,
         ),
@@ -310,7 +367,7 @@ fn setup_car(
         ));
         *rotation_factor = RotationFactor(0.0);
         *linear_velocity = LinearVelocity::ZERO;
-        *state = State::Neutral;
+        *state = CarState::Neutral;
         *race_progression = RaceProgression {
             last_checkpoint: 0,
             current_lap: 0,
@@ -366,16 +423,16 @@ fn deccelerate(
 
 fn update_state(
     mut appearance_query: Query<
-        (&RotationFactor, &mut AnimationIndex, &mut Sprite, &State),
-        (Changed<State>, With<Car>),
+        (&RotationFactor, &mut AnimationIndex, &mut Sprite, &CarState),
+        (Changed<CarState>, With<Car>),
     >,
 ) {
     for (rotation, mut animation_index, mut sprite, state) in &mut appearance_query {
         match *state {
-            State::Neutral => {
+            CarState::Neutral => {
                 *animation_index = AnimationIndex(0);
             }
-            State::Accelerating => {
+            CarState::Accelerating => {
                 if rotation.0 > 0.2 {
                     // car turns on the left
                     sprite.flip_x = false;
@@ -389,10 +446,10 @@ fn update_state(
                     *animation_index = AnimationIndex(1);
                 }
             }
-            State::Braking => {
+            CarState::Braking => {
                 *animation_index = AnimationIndex(3);
             }
-            State::Falling => {
+            CarState::Falling => {
                 *animation_index = AnimationIndex(0);
             }
         }
@@ -406,7 +463,7 @@ fn animate_falling(
             &mut LinearVelocity,
             &mut AngularVelocity,
             &mut FallingTimer,
-            &State,
+            &CarState,
         ),
         With<Car>,
     >,
@@ -415,7 +472,7 @@ fn animate_falling(
     time: Res<Time>,
 ) {
     for (mut transform, mut velocity, mut angular_velocity, mut timer, state) in &mut car_query {
-        if matches!(state, State::Falling) {
+        if matches!(state, CarState::Falling) {
             timer.0.tick(time.delta());
             if timer.0.is_finished() {
                 next_state.set(PlayingState::End);
@@ -427,6 +484,33 @@ fn animate_falling(
                 velocity.0 *= 0.95;
                 angular_velocity.0 = 0.0;
             }
+        }
+    }
+}
+
+fn dash(dash_query: Query<(&mut LinearVelocity, &Transform, &Dash, &DashTimer)>) {
+    for (mut velocity, transform, dash, timer) in dash_query {
+        let dash_direction = match dash {
+            Dash::Left => transform.left(),
+            Dash::Right => transform.right(),
+        }
+        .as_vec3()
+        .truncate();
+        let f = EaseFunction::BackOut;
+        let coef = 4.5 * f.sample_clamped(timer.0.elapsed_secs() * 20.0);
+        velocity.0 += dash_direction * coef;
+    }
+}
+
+fn update_dash(
+    mut commands: Commands,
+    dash_query: Query<(Entity, &mut DashTimer)>,
+    time: Res<Time>,
+) {
+    for (entity, mut timer) in dash_query {
+        timer.0.tick(time.delta());
+        if timer.0.is_finished() {
+            commands.entity(entity).remove::<(Dash, DashTimer)>();
         }
     }
 }
@@ -445,10 +529,18 @@ struct Brake;
 #[action_output(f32)]
 struct Rotate;
 
+#[derive(InputAction)]
+#[action_output(bool)]
+struct DashLeft;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct DashRight;
+
 fn accelerate(
     acceleration: On<Fire<Accelerate>>,
     mut query: Query<
-        (&mut LinearVelocity, &Transform, &mut State, &Config),
+        (&mut LinearVelocity, &Transform, &mut CarState, &Config),
         (With<Car>, With<Grounded>),
     >,
     time: Res<Time>,
@@ -457,7 +549,7 @@ fn accelerate(
         let dir = (transform.rotation * Vec3::Y).truncate();
         velocity.0 +=
             Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;
-        *state = State::Accelerating;
+        *state = CarState::Accelerating;
     }
 }
 
@@ -479,25 +571,37 @@ fn rotate(
 
 fn input_brake(
     brake: On<Fire<Brake>>,
-    mut query: Query<(&mut LinearVelocity, &mut State, &Config), (With<Car>, With<Grounded>)>,
+    mut query: Query<(&mut LinearVelocity, &mut CarState, &Config), (With<Car>, With<Grounded>)>,
 ) {
     if let Ok((mut velocity, mut state, config)) = query.get_mut(brake.context) {
         velocity.0 *= 1.0 - brake.value * config.brake;
-        *state = State::Braking;
+        *state = CarState::Braking;
     }
 }
 
 fn input_cancel_acceleration(
     acceleration: On<Complete<Accelerate>>,
-    mut query: Query<&mut State, With<Car>>,
+    mut query: Query<&mut CarState, With<Car>>,
 ) {
     if let Ok(mut state) = query.get_mut(acceleration.context) {
-        *state = State::Neutral;
+        *state = CarState::Neutral;
     }
 }
 
-fn input_cancel_brake(brake: On<Complete<Brake>>, mut query: Query<&mut State, With<Car>>) {
+fn input_cancel_brake(brake: On<Complete<Brake>>, mut query: Query<&mut CarState, With<Car>>) {
     if let Ok(mut state) = query.get_mut(brake.context) {
-        *state = State::Neutral;
+        *state = CarState::Neutral;
     }
+}
+
+fn input_dash_left(dash: On<Fire<DashLeft>>, mut commands: Commands) {
+    commands
+        .entity(dash.context)
+        .insert(DashBundle::init(Dash::Left));
+}
+
+fn input_dash_right(dash: On<Fire<DashRight>>, mut commands: Commands) {
+    commands
+        .entity(dash.context)
+        .insert(DashBundle::init(Dash::Right));
 }

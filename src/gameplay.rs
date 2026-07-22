@@ -29,7 +29,7 @@ pub struct GameplayPlugin;
 impl Plugin for GameplayPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_sub_state::<PlayingState>()
-            .insert_state(Pause(false))
+            .insert_state(Pause::default())
             .insert_resource(TimeSinceStart(Stopwatch::new()))
             .add_observer(spawn_countdown)
             .add_observer(reset_stopwatch)
