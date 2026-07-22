@@ -17,8 +17,21 @@ pub enum PlayingState {
     End,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash, States)]
-pub struct Pause(pub bool);
+#[derive(Default, Debug, PartialEq, Eq, Clone, Hash, States)]
+pub enum Pause {
+    #[default]
+    Running,
+    Paused,
+}
+
+impl Pause {
+    pub fn get_toggled(&self) -> Self {
+        match self {
+            Self::Running => Self::Paused,
+            Self::Paused => Self::Running,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, States)]
 pub enum Menu {
