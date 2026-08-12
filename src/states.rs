@@ -1,9 +1,10 @@
-use bevy::prelude::{StateSet, States};
+use bevy::prelude::States;
 use bevy::state::state::SubStates;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, States)]
 pub enum GameState {
-    Menu,
+    Init,
+    Configuring,
     Playing,
 }
 

@@ -1,9 +1,11 @@
 use bevy::app::Update;
 use bevy::asset::{AssetServer, Assets};
 use bevy::ecs::component::Component;
+use bevy::ecs::entity::Entity;
+use bevy::ecs::event::{EntityEvent, Event};
 use bevy::ecs::lifecycle::Add;
 use bevy::ecs::observer::On;
-use bevy::ecs::query::{Has, With};
+use bevy::ecs::query::{Has, With, Without};
 use bevy::ecs::resource::Resource;
 use bevy::ecs::schedule::IntoScheduleConfigs;
 use bevy::ecs::system::{Commands, Query, Res, ResMut, Single};
@@ -19,7 +21,9 @@ use bevy::time::{Stopwatch, Time, Timer, TimerMode};
 use bevy_ecs_tiled::prelude::{MapCreated, TiledEvent, TiledMap};
 
 use crate::animation::{AnimationIndex, AnimationIndices, AnimationTimer};
-use crate::car::{Car, CarSpawnPoint, GameProgression, Grounded, LapsTime, RaceProgression};
+use crate::car::{
+    Car, CarSpawnPoint, Finished, GameProgression, Grounded, LapsTime, RaceProgression,
+};
 use crate::gamemodes::{ArcadeLevels, GameMode, SelectedLevel};
 use crate::states::{Menu, Pause, PlayingState};
 use crate::tilemap::NumberOfLaps;
@@ -33,7 +37,7 @@ impl Plugin for GameplayPlugin {
             .insert_resource(TimeSinceStart(Stopwatch::new()))
             .add_observer(spawn_countdown)
             .add_observer(reset_stopwatch)
-            // .add_observer(game_over)
+            .add_observer(set_game_over)
             .add_systems(
                 Update,
                 (
@@ -116,44 +120,76 @@ fn reset_stopwatch(_: On<TiledEvent<MapCreated>>, mut stopwatch_res: ResMut<Time
     stopwatch_res.0.reset();
 }
 
+#[derive(EntityEvent)]
+pub struct PlayerFinished(pub Entity);
+
 fn game_over(
-    mut car_query: Query<(&RaceProgression, &mut GameProgression, Has<Grounded>), With<Car>>,
+    mut commands: Commands,
+    mut car_query: Query<
+        (
+            Entity,
+            &RaceProgression,
+            &mut GameProgression,
+            Has<Grounded>,
+        ),
+        (With<Car>, Without<Finished>),
+    >,
     level_query: Query<&NumberOfLaps, With<TiledMap>>,
     game_mode_query: Single<&GameMode>,
     mut level_serie: Single<&mut ArcadeLevels>,
     mut selected_level: Single<&mut SelectedLevel>,
-    mut next_state: ResMut<NextState<PlayingState>>,
-    mut next_menu: ResMut<NextState<Menu>>,
+    // mut next_state: ResMut<NextState<PlayingState>>,
+    // mut next_menu: ResMut<NextState<Menu>>,
 ) {
     let Ok(n_laps) = level_query.single() else {
         return;
     };
     // TODO: check if all the players have finished
-    for (progression, mut game_progression, is_grounded) in &mut car_query {
+    for (entity, progression, mut game_progression, is_grounded) in &mut car_query {
         if progression.current_lap == n_laps.0 + 1 && level_serie.increment_index() {
             // player finished all laps of the race
             match *game_mode_query {
                 GameMode::Arcade => {
                     game_progression.incr_n_race();
-                    if level_serie.is_finished() {
-                        next_state.set(PlayingState::End);
-                        next_menu.set(Menu::GameOver);
-                    } else {
+                    // if level_serie.is_finished() {
+                    //     next_state.set(PlayingState::End);
+                    //     next_menu.set(Menu::GameOver);
+                    // } else {
+                    //     selected_level.0 = level_serie.get_current_level();
+                    //     game_progression.push_laps_times(LapsTime::new());
+                    //     next_state.set(PlayingState::End);
+                    //     next_menu.set(Menu::RaceOver);
+                    // }
+                    if !level_serie.is_finished() {
                         selected_level.0 = level_serie.get_current_level();
                         game_progression.push_laps_times(LapsTime::new());
-                        next_state.set(PlayingState::End);
-                        next_menu.set(Menu::RaceOver);
                     }
                 }
                 GameMode::Free => {
-                    next_state.set(PlayingState::End);
-                    next_menu.set(Menu::GameOver);
+                    // next_state.set(PlayingState::End);
+                    // next_menu.set(Menu::GameOver);
                 }
             }
+            commands.entity(entity).insert(Finished);
+            commands.trigger(PlayerFinished(entity));
         } else if !is_grounded {
             // player has fallen
-            next_state.set(PlayingState::End);
-            next_menu.set(Menu::GameOver);
+            // next_state.set(PlayingState::End);
+            // next_menu.set(Menu::GameOver);
+            commands.entity(entity).insert(Finished);
+            commands.trigger(PlayerFinished(entity));
         }
+    }
+}
+
+fn set_game_over(
+    _: On<PlayerFinished>,
+    car_query: Query<Has<Finished>, With<Car>>,
+    mut next_state: ResMut<NextState<PlayingState>>,
+    mut next_menu: ResMut<NextState<Menu>>,
+) {
+    if car_query.iter().all(|finished| finished) {
+        next_state.set(PlayingState::End);
+        next_menu.set(Menu::GameOver);
     }
 }

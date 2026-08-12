@@ -2,7 +2,7 @@ use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_ecs_tiled::prelude::*;
 
-use crate::car::{Car, CarState, GameProgression, Grounded, RaceProgression};
+use crate::car::{Car, CarState, Finished, GameProgression, Grounded, RaceProgression};
 use crate::gamemodes::SelectedLevel;
 use crate::gameplay::TimeSinceStart;
 use crate::states::PlayingState;
@@ -45,7 +45,10 @@ pub fn handle_trigger_zone_collision(
     mut commands: Commands,
     mut message_reader: MessageReader<CollisionStart>,
     zone_query: Query<&TriggerZone>,
-    mut car_query: Query<(Entity, &mut RaceProgression, &mut GameProgression), With<Car>>,
+    mut car_query: Query<
+        (Entity, &mut RaceProgression, &mut GameProgression),
+        (With<Car>, With<Grounded>, Without<Finished>),
+    >,
     display_query: Query<Entity, (With<Text>, Without<TotalTimeDisplay>)>,
     time_since_start: Res<TimeSinceStart>,
 ) {

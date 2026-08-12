@@ -162,7 +162,7 @@ pub fn update_state(
                 }
                 MenuAction::Exit => {
                     next_menu.set(Menu::Main);
-                    next_game_state.set(GameState::Menu);
+                    next_game_state.set(GameState::Init);
                 }
             };
         }

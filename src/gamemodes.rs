@@ -43,10 +43,7 @@ impl ArcadeLevels {
     pub fn init() -> Self {
         let levels: Option<[Level; ARCADE_NUM_RACES]> = ALL_LEVELS.sample_array(&mut rand::rng());
         match levels {
-            Some(levels) => {
-                levels.iter().for_each(|l| println!("{}", l.name()));
-                ArcadeLevels { levels, index: 0 }
-            }
+            Some(levels) => ArcadeLevels { levels, index: 0 },
             None => ArcadeLevels::default(),
         }
     }

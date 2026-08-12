@@ -71,7 +71,7 @@ fn main() {
         //     PhysicsEntityDiagnosticsPlugin,
         // ))
         // .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::new()))
-        .insert_state(GameState::Menu)
+        .insert_state(GameState::Init)
         .add_plugins((
             FontPlugin,
             CameraPlugin,
@@ -84,6 +84,6 @@ fn main() {
             AnimationPlugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(MultiplayerMode::SinglePlayer)
+        .insert_resource(MultiplayerMode::Single)
         .run();
 }

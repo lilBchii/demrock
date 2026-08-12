@@ -11,6 +11,7 @@ pub mod game_mode_selection;
 pub mod gameover;
 pub mod level_selection;
 pub mod main;
+pub mod n_player_selection;
 pub mod race_over;
 pub mod settings;
 
@@ -37,6 +38,11 @@ impl Plugin for MenuPlugin {
             .add_systems(
                 OnEnter(Menu::LevelSelection),
                 level_selection::spawn_level_selection_menu,
-            );
+            )
+            .add_systems(
+                OnEnter(Menu::PlayerMenu),
+                n_player_selection::spawn_n_player_menu,
+            )
+            .add_observer(race_over::spawn_individual_race_over_menu);
     }
 }

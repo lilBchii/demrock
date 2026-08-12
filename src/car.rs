@@ -1,4 +1,4 @@
-use std::{f32::consts::FRAC_PI_2, fmt::Display};
+use std::fmt::Display;
 
 use avian2d::prelude::*;
 use bevy::prelude::*;
@@ -6,9 +6,10 @@ use bevy_enhanced_input::prelude::{Press, *};
 
 use crate::{
     animation::{custom_layout, AnimationIndex, AnimationIndices, AnimationTimer},
+    camera::setup_game_camera,
     common::{
-        CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION, CAR_ROTATION,
-        CAR_SPRITE_SIZE,
+        MultiplayerMode, CAR_ACCELERATION, CAR_ANIMATION_INDICES, CAR_BRAKE, CAR_NUM_ANIMATION,
+        CAR_ROTATION, CAR_SPRITE_SIZE,
     },
     gamemodes::ARCADE_NUM_RACES,
     states::{GameState, Menu, PlayingState},
@@ -32,7 +33,10 @@ impl Plugin for CarPlugin {
                 .run_if(in_state(PlayingState::Racing)),
         )
         .add_systems(OnEnter(PlayingState::Racing), enable_input)
-        .add_systems(OnEnter(GameState::Playing), spawn_car)
+        .add_systems(
+            OnEnter(GameState::Playing),
+            (spawn_car, setup_game_camera).chain(),
+        )
         .add_systems(OnExit(PlayingState::Racing), disable_input)
         .add_input_context::<Car>()
         .add_observer(setup_car)
@@ -71,8 +75,13 @@ pub enum CarState {
 }
 
 #[derive(Component)]
-#[component(storage = "SparseSet")]
+// #[component(storage = "SparseSet")]
 pub struct Grounded;
+
+// The player has finished the race wether because he has fallen
+// or he has finished all the laps
+#[derive(Component)]
+pub struct Finished;
 
 #[derive(Component)]
 struct FallingTimer(Timer);
@@ -215,25 +224,34 @@ impl DashBundle {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
-#[require(Transform)]
-#[reflect(Component)]
-pub struct CarSpawnPoint;
+#[derive(Component)]
+pub enum Player {
+    First,
+    Second,
+    Third,
+    Forth,
+}
 
-// ---- Sytems ---- //
+impl TryFrom<usize> for Player {
+    type Error = &'static str;
+    fn try_from(value: usize) -> std::result::Result<Self, Self::Error> {
+        match value {
+            1 => Ok(Self::First),
+            2 => Ok(Self::Second),
+            3 => Ok(Self::Third),
+            4 => Ok(Self::Forth),
+            _ => Err("Cannot convert this integer to Player"),
+        }
+    }
+}
 
-fn spawn_car(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-) {
-    let tile_size = UVec2::from(CAR_SPRITE_SIZE);
-    let atlas_layout_handle = atlas_layouts.add(custom_layout::<CAR_NUM_ANIMATION>(
-        tile_size,
-        CAR_ANIMATION_INDICES,
-    ));
-
-    commands.spawn((
+fn car_bundle(
+    player: Player,
+    gamepad: Option<Entity>,
+    image: Handle<Image>,
+    atlas_layout: Handle<TextureAtlasLayout>,
+) -> impl Bundle {
+    (
         Car,
         Config {
             rotation_speed: CAR_ROTATION,
@@ -246,9 +264,9 @@ fn spawn_car(
         AppearanceBundle {
             visibility: Visibility::Hidden,
             sprite: Sprite::from_atlas_image(
-                asset_server.load("racer.png"),
+                image,
                 TextureAtlas {
-                    layout: atlas_layout_handle,
+                    layout: atlas_layout,
                     index: 0,
                 },
             ),
@@ -274,6 +292,8 @@ fn spawn_car(
             collision_events: CollisionEventsEnabled,
         },
         FallingTimer(Timer::from_seconds(4.0, TimerMode::Once)),
+        player,
+        GamepadDevice::from(gamepad),
         actions!(Car[
             (
                 Action::<Accelerate>::new(),
@@ -324,7 +344,55 @@ fn spawn_car(
             ..Default::default()
         },
         DespawnOnExit(GameState::Playing),
+    )
+}
+
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq, Default, Reflect)]
+#[require(Transform)]
+#[reflect(Component)]
+pub struct CarSpawnPoint;
+
+// ---- Sytems ---- //
+
+fn spawn_car(
+    mut commands: Commands,
+    gamepads: Query<Entity, With<Gamepad>>,
+    asset_server: Res<AssetServer>,
+    mut atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
+    players: Res<MultiplayerMode>,
+) {
+    let tile_size = UVec2::from(CAR_SPRITE_SIZE);
+    let atlas_layout_handle = atlas_layouts.add(custom_layout::<CAR_NUM_ANIMATION>(
+        tile_size,
+        CAR_ANIMATION_INDICES,
     ));
+    let mut gamepads = gamepads.iter();
+    let image = asset_server.load("racer.png");
+
+    let n_players = *players as u32;
+    for index in 0..n_players {
+        if let Ok(p) = Player::try_from(index as usize + 1) {
+            let player = commands
+                .spawn(car_bundle(
+                    p,
+                    gamepads.next(),
+                    image.clone(),
+                    atlas_layout_handle.clone(),
+                ))
+                .id();
+
+            // let camera_pos = UVec2::new(index % 2, index / 2);
+            // commands.spawn((
+            //     InGameCamera,
+            //     Camera2d,
+            //     CameraPosition { pos: camera_pos },
+            //     Transform::from_translation(camera_pos).looking_at(Vec3::ZERO, Vec3::Y),
+            //     TiledParallaxCamera,
+            //     FocusOnPlayer(player),
+            //     DespawnOnExit(GameState::Playing),
+            // ));
+        }
+    }
 }
 
 // This spawns physics components of the car when a spawn point has spawned.
@@ -375,7 +443,7 @@ fn setup_car(
         *visibility = Visibility::Visible;
         commands
             .entity(entity)
-            .remove::<(ColliderDisabled, RigidBodyDisabled)>()
+            .remove::<(ColliderDisabled, RigidBodyDisabled, Finished)>()
             .insert(Grounded);
     }
 }
@@ -545,7 +613,9 @@ fn accelerate(
     >,
     time: Res<Time>,
 ) {
+    println!("zebi");
     if let Ok((mut velocity, transform, mut state, config)) = query.get_mut(acceleration.context) {
+        println!("{:?}", acceleration);
         let dir = (transform.rotation * Vec3::Y).truncate();
         velocity.0 +=
             Vec2::splat(acceleration.value * config.acceleration * time.delta_secs()) * dir;

@@ -100,8 +100,7 @@ pub fn update_state(
         if let Ok(action) = action.get(input_focus) {
             match action {
                 MenuAction::Play => {
-                    // TODO: set menu to PlayerMenu
-                    next_menu.set(Menu::ModeSelection);
+                    next_menu.set(Menu::PlayerMenu);
                 }
                 MenuAction::Settings => {
                     next_menu.set(Menu::Settings);

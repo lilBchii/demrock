@@ -15,8 +15,10 @@ pub const CAR_NUM_ANIMATION: usize = 4;
 pub const TILE_SIZE: i32 = 24;
 pub const LEVEL_COUNT: i32 = 4;
 
-#[derive(Resource, Debug, PartialEq, Eq)]
+#[derive(Resource, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MultiplayerMode {
-    SinglePlayer,
-    TwoPlayers,
+    Single = 1,
+    Two = 2,
+    Three = 3,
+    Four = 4,
 }
